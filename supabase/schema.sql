@@ -5,6 +5,7 @@ create table if not exists profiles (
   username text unique,
   full_name text,
   avatar_url text,
+  upi_id text,
   created_at timestamptz not null default now()
 );
 

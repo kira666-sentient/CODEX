@@ -146,6 +146,8 @@ export default function FnbApp() {
   const [error, setError] = useState<string | null>(null);
 
   const [usernameDraft, setUsernameDraft] = useState("");
+  const [upiIdDraft, setUpiIdDraft] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [inviteUsername, setInviteUsername] = useState("");
   const [debtForm, setDebtForm] = useState({
     friendId: "",
@@ -167,6 +169,7 @@ export default function FnbApp() {
 
   function openProfileDialog() {
     setUsernameDraft(dashboard.profile?.username ?? "");
+    setUpiIdDraft(dashboard.profile?.upi_id ?? "");
     setIsProfileDialogOpen(true);
   }
 
@@ -500,7 +503,8 @@ export default function FnbApp() {
             id: friendId,
             username: null,
             full_name: "Unknown friend",
-            avatar_url: null
+            avatar_url: null,
+            upi_id: null
           },
           balanceInPaise: 0
         };
@@ -812,7 +816,7 @@ export default function FnbApp() {
     setError(getErrorMessage(cause));
   }
 
-  async function saveUsername() {
+  async function saveProfile() {
     const client = supabase;
 
     if (!client || !session?.user) {
@@ -828,12 +832,18 @@ export default function FnbApp() {
       return;
     }
 
+    const formattedUpi = upiIdDraft.trim().toLowerCase();
+    if (formattedUpi && !formattedUpi.includes("@")) {
+      setError("Please enter a valid UPI ID (e.g. yourname@bank) or leave it completely blank.");
+      return;
+    }
+
     resetMessages();
 
     startSavingUsername(async () => {
       const { error: updateError } = await readyClient
         .from("profiles")
-        .update({ username: sanitized })
+        .update({ username: sanitized, upi_id: formattedUpi || null })
         .eq("id", session.user.id);
 
       if (updateError) {
@@ -841,7 +851,7 @@ export default function FnbApp() {
         return;
       }
 
-      setFeedback("Username updated.");
+      setFeedback("Profile updated.");
       setIsProfileDialogOpen(false);
       await refreshData();
     });
@@ -1133,87 +1143,42 @@ export default function FnbApp() {
       return;
     }
 
+    const targetFriend = balances.find(f => f.profile.id === settlementForm.friendId);
+    if (!targetFriend) return;
+    
+    const upiId = targetFriend.profile.upi_id;
+    if (!upiId) {
+      setError("That friend has not linked a UPI ID. Ask them to add it to their profile, or use \"Record manual\" instead.");
+      return;
+    }
+
     resetMessages();
 
     startMutation(async () => {
-      let res;
-      try {
-        res = await fetch('/api/razorpay', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount_in_paise: amountInPaise })
-        });
-      } catch {
-        setFailure("Failed to connect to payment server.");
-        return;
-      }
-      
-      const order = await res.json();
-      
-      if (order.error) {
-        setFailure(order.error);
-        return;
-      }
-      
-      const loaded = await new Promise((resolve) => {
-        if (document.getElementById("rzp-script")) return resolve(true);
-        const script = document.createElement("script");
-        script.id = "rzp-script";
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
-        document.body.appendChild(script);
+      const { error: insertError } = await supabase!.from("settlements").insert({
+        payer_id: session!.user.id,
+        receiver_id: settlementForm.friendId,
+        amount_in_paise: amountInPaise,
+        currency: "INR",
+        note: (settlementForm.note.trim() || `UPI transfer initiated`),
+        status: "pending"
       });
-
-      if (!loaded) {
-        setFailure("Razorpay SDK failed to load. Check your connection.");
-        return;
-      }
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_mock", 
-        amount: order.amount,
-        currency: order.currency,
-        name: "Friends & Benefits",
-        description: "Settlement",
-        order_id: order.id.startsWith("order_mock") ? undefined : order.id,
-        handler: async function (response: { razorpay_payment_id?: string }) {
-           const { error: insertError } = await supabase!.from("settlements").insert({
-             payer_id: session!.user.id,
-             receiver_id: settlementForm.friendId,
-             amount_in_paise: amountInPaise,
-             currency: "INR",
-             note: (settlementForm.note.trim() || `Online transfer: ${response.razorpay_payment_id || "demo"}`),
-             status: "approved",
-             approved_at: new Date().toISOString()
-           });
-           
-           if (insertError) {
-             setFailure("Payment succeeded but failed to log in F&B.");
-           } else {
-             setFeedback("Payment completed and settlement approved.");
-             setSettlementForm({ friendId: "", amount: "", note: "" });
-             setIsSettlementDialogOpen(false);
-           }
-           await refreshData();
-        },
-        prefill: {
-          name: dashboard.profile?.full_name || "",
-          email: session!.user.email || ""
-        }
-      };
       
-      if (order.id.startsWith("order_mock") && options.key === "rzp_test_mock") {
-        options.handler({ razorpay_payment_id: "pay_mock_" + Date.now() });
+      if (insertError) {
+        setFailure("Failed to connect to F&B server to record transaction attempt.");
         return;
       }
 
-      const RazorpayCtor = (window as unknown as { Razorpay: new (opts: unknown) => { on: (event: string, cb: () => void) => void; open: () => void } }).Razorpay;
-      const rzp = new RazorpayCtor(options);
-      rzp.on('payment.failed', function () {
-         setFailure("Payment was cancelled or failed.");
-      });
-      rzp.open();
+      const payeeName = encodeURIComponent(targetFriend.profile.full_name || "Friend");
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${payeeName}&am=${amount.toFixed(2)}&cu=INR&tn=F&B Settlement`;
+
+      setFeedback("Opening your UPI app...");
+      setSettlementForm({ friendId: "", amount: "", note: "" });
+      setIsSettlementDialogOpen(false);
+      await refreshData();
+      
+      // Native navigation to open GPay/PhonePe natively
+      window.location.href = upiUrl;
     });
   }
 
@@ -1275,24 +1240,57 @@ export default function FnbApp() {
 
 
   return (
-    <main className="shell app-shell">
-      <section className="topbar">
-        <div className="topbar-main">
-          <div className="identity-lockup">
-            <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
-            <div className="brand-copy">
-              <p className="eyebrow">F&B</p>
-              <h1 className="app-title">Friends and Benefits</h1>
+    <>
+      {isSidebarOpen && (
+        <div className="dialog-backdrop" onClick={() => setIsSidebarOpen(false)} style={{ zIndex: 100, alignItems: 'flex-start', justifyContent: 'flex-end', backdropFilter: 'blur(4px)', background: 'rgba(0,0,0,0.2)' }}>
+          <aside className="dialog-card" style={{ width: '80vw', height: '100vh', margin: 0, borderRadius: '24px 0 0 24px', animation: 'slideIn 0.25s' }} onClick={e => e.stopPropagation()}>
+            <div className="dialog-head" style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', padding: '24px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+               <button className="ghost-button dialog-close-button" onClick={() => setIsSidebarOpen(false)}>Close</button>
+               <img src="/fnb-logo.svg" alt="F&B" style={{ height: "32px", width: "auto" }} />
+            </div>
+            <div className="sidebar-content" style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "20px" }}>
+              <div className="dialog-profile" style={{ justifyContent: "flex-start", paddingLeft: "24px" }}>
+                <Avatar profile={dashboard.profile} size="medium" />
+                <div>
+                  <strong>{readableProfile(dashboard.profile)}</strong>
+                  <p className="muted">@{dashboard.profile?.username ?? "not-set"}</p>
+                </div>
+              </div>
+              
+              <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                 <button className="ghost-button" style={{ justifyContent: "flex-start", padding: "16px", background: "rgba(0,0,0,0.02)" }} onClick={() => { setIsSidebarOpen(false); openProfileDialog(); }}>Profile & UPI setup</button>
+                 <button className="ghost-button danger-ghost-button" style={{ justifyContent: "flex-start", padding: "16px", background: "rgba(255,0,0,0.02)" }} onClick={signOut}>Sign out completely</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <main className="shell app-shell">
+        <section className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="topbar-main">
+            <div className="identity-lockup">
+              <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
+              <div className="brand-copy">
+                <p className="eyebrow">F&B</p>
+                <h1 className="app-title">Friends and Benefits</h1>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {(error || feedback) && (
-        <section className={`banner ${error ? "error-banner" : "success-banner"}`}>
-          <p>{error ?? feedback}</p>
+          <button 
+            className="ghost-button" 
+            onClick={() => setIsSidebarOpen(true)}
+            style={{ fontSize: "1.5rem", padding: "8px" }}
+          >
+            ☰
+          </button>
         </section>
-      )}
+
+        {(error || feedback) && (
+          <section className={`banner ${error ? "error-banner" : "success-banner"}`}>
+            <p>{error ?? feedback}</p>
+          </section>
+        )}
 
       <section className="profile-strip">
         <div className="profile-strip-identity">
@@ -1381,15 +1379,28 @@ export default function FnbApp() {
                   placeholder="for example: kiran_07"
                 />
               </label>
+
+              <label>
+                <span>UPI ID (Optional but recommended)</span>
+                <input
+                  type="text"
+                  value={upiIdDraft}
+                  onChange={(event) => setUpiIdDraft(event.target.value)}
+                  placeholder="name@okaxis"
+                />
+                <small className="muted" style={{ display: "block", marginTop: "4px" }}>
+                  Used to generate 1-click payment links so friends can pay you easily.
+                </small>
+              </label>
             </div>
 
             <div className="action-row">
               <button
                 className="primary-button"
-                onClick={saveUsername}
+                onClick={saveProfile}
                 disabled={savingUsername}
               >
-                {savingUsername ? "Saving..." : "Save username"}
+                {savingUsername ? "Saving..." : "Save profile"}
               </button>
             </div>
           </section>
@@ -2116,6 +2127,7 @@ export default function FnbApp() {
       )}
 
     </main>
+    </>
   );
 }
 

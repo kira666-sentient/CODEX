@@ -1688,28 +1688,71 @@ code {
     max-height: 300px;
   }
 
-  /* Bottom sheet mobile dialogs */
+  /* Full screen mobile pages */
   .dialog-backdrop {
-    align-items: flex-end; /* Snap to bottom */
+    align-items: flex-start; /* Snap to top */
     padding: 0;
+    backdrop-filter: none;
+    background: var(--bg); /* Opaque solid background */
   }
 
   .dialog-card {
     margin: 0;
     width: 100vw;
-    max-height: 85vh; /* Keep top 15% clear to tap out */
-    border-radius: 32px 32px 0 0; /* Only round top corners */
-    padding: 28px 20px 40px; /* Extra bottom padding for safe area */
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    padding: 0; 
+    animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Fixed Mobile Navigation Header */
+  .dialog-head {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    flex-direction: row-reverse; /* 'Back' on left, Title on Right */
+    justify-content: flex-end;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .dialog-head h2 { font-size: 1.25rem; }
+  .dialog-head p { display: none; } /* Hide the subtitle helper text in mobile headers */
+  
+  .dialog-close-button {
+    margin: 0; 
+    font-weight: 600;
+  }
+  
+  .dialog-body, .statement-shell, .dialog-profile, .form-grid, .action-row {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  
+  .action-row {
+      padding-bottom: 24px;
+  }
+
+  .statement-shell {
+      border: none; /* remove bounding box for fullscreen */
+      background: transparent;
   }
 }
 
-@keyframes slideUp {
+@keyframes slideIn {
   from {
-    transform: translateY(100%);
+    transform: translateX(100%);
   }
   to {
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 
