@@ -876,8 +876,7 @@ export default function FnbApp() {
   }
 
   const profileNeedsSetup =
-    Boolean(session?.user) &&
-    (!dashboard.profile?.username || dashboard.profile.username.length < 3);
+    !dashboard.profile?.username || dashboard.profile.username.length < 3;
 
   if (!envReady) {
     return (
@@ -959,6 +958,9 @@ export default function FnbApp() {
           <p className="top-copy">
             Welcome back, {dashboard.profile?.full_name ?? session.user.email}.
           </p>
+          <p className="top-copy">
+            Your username: @{dashboard.profile?.username ?? "not-set"}
+          </p>
         </div>
 
         <div className="topbar-actions">
@@ -977,33 +979,33 @@ export default function FnbApp() {
         </section>
       )}
 
-      {profileNeedsSetup && (
-        <section className="panel">
-          <h2>Finish your profile</h2>
-          <p className="muted">
-            Your friends will find you by username. Keep it short and easy to type.
-          </p>
-          <div className="form-grid compact-grid">
-            <label>
-              <span>Username</span>
-              <input
-                value={usernameDraft}
-                onChange={(event) => setUsernameDraft(event.target.value)}
-                placeholder="for example: kiran_07"
-              />
-            </label>
-          </div>
-          <div className="action-row">
-            <button
-              className="primary-button"
-              onClick={saveUsername}
-              disabled={savingUsername}
-            >
-              {savingUsername ? "Saving..." : "Save username"}
-            </button>
-          </div>
-        </section>
-      )}
+      <section className="panel">
+        <h2>{profileNeedsSetup ? "Finish your profile" : "Your profile"}</h2>
+        <p className="muted">
+          {profileNeedsSetup
+            ? "We generated a starter username, but you should pick one your friends can type easily."
+            : "This is the username your friends should use to invite you. You can change it anytime."}
+        </p>
+        <div className="form-grid compact-grid">
+          <label>
+            <span>Username</span>
+            <input
+              value={usernameDraft}
+              onChange={(event) => setUsernameDraft(event.target.value)}
+              placeholder="for example: kiran_07"
+            />
+          </label>
+        </div>
+        <div className="action-row">
+          <button
+            className="primary-button"
+            onClick={saveUsername}
+            disabled={savingUsername}
+          >
+            {savingUsername ? "Saving..." : "Save username"}
+          </button>
+        </div>
+      </section>
 
       <section className="stat-grid">
         <article className="stat-card">
@@ -1029,7 +1031,10 @@ export default function FnbApp() {
           <div className="section-head">
             <div>
               <h2>Friends</h2>
-              <p className="muted">Invite friends by their F&B username.</p>
+              <p className="muted">
+                Invite friends by their F&B username. Yours is @
+                {dashboard.profile?.username ?? "not-set"}.
+              </p>
             </div>
           </div>
 
