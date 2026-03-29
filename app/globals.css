@@ -146,11 +146,11 @@ h1 {
 }
 
 .topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 32px;
   background: rgba(255, 251, 245, 0.75);
   backdrop-filter: blur(18px);
   box-shadow: var(--shadow);
@@ -170,7 +170,7 @@ h1 {
 .list-card p,
 .list-card small {
   margin: 6px 0 0;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .topbar-actions,
@@ -181,8 +181,13 @@ h1 {
   gap: 10px;
 }
 
+.topbar-actions {
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
 .action-row {
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .primary-button,
@@ -272,7 +277,7 @@ h1 {
 }
 
 .dashboard-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .identity-lockup,
@@ -280,16 +285,34 @@ h1 {
 .statement-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
+}
+
+.identity-lockup {
+  min-width: 0;
+}
+
+.person-identity {
+  min-width: 0;
 }
 
 .person-block {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .person-copy p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
+}
+
+.person-copy {
+  min-width: 0;
+}
+
+.person-copy strong {
+  display: block;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .avatar {
@@ -331,13 +354,13 @@ h1 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .compact-grid {
@@ -353,6 +376,7 @@ h1 {
 .form-grid span {
   font-size: 0.92rem;
   color: var(--muted);
+  line-height: 1.35;
 }
 
 input,
@@ -368,6 +392,7 @@ textarea {
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  min-height: 56px;
   padding: 14px 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
@@ -376,6 +401,7 @@ textarea {
 
 textarea {
   resize: vertical;
+  min-height: 124px;
 }
 
 .full-span {
@@ -384,8 +410,8 @@ textarea {
 
 .stack {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-top: 20px;
 }
 
 .mini-stack {
@@ -396,8 +422,8 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 18px;
+  gap: 18px;
+  padding: 18px 20px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.55);
@@ -411,9 +437,9 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   width: 100%;
-  padding: 16px 18px;
+  padding: 18px 20px;
   border-radius: 18px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.6);
@@ -428,7 +454,7 @@ textarea {
 .friend-card-side {
   display: grid;
   justify-items: end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .friend-card-side small {
@@ -448,7 +474,8 @@ textarea {
 }
 
 .picker-trigger {
-  padding: 12px 14px;
+  min-height: 56px;
+  padding: 10px 14px;
   text-align: left;
 }
 
@@ -465,6 +492,12 @@ textarea {
 
 .picker-placeholder {
   color: var(--muted);
+}
+
+.picker-caret {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .picker-menu {
@@ -489,6 +522,10 @@ textarea {
   gap: 12px;
   padding: 12px 14px;
   text-align: left;
+}
+
+.picker-option small {
+  color: var(--muted);
 }
 
 .pill,
@@ -626,6 +663,10 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.statement-dialog {
+  width: min(900px, 100%);
+}
+
 .dialog-head {
   display: flex;
   align-items: flex-start;
@@ -666,17 +707,28 @@ code {
     border-radius: 20px;
   }
 
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
   .dashboard-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }
 
   .list-card,
-  .topbar,
   .friend-card,
   .dialog-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .identity-lockup,
+  .person-identity,
+  .statement-header,
+  .picker-value,
+  .picker-option {
+    align-items: flex-start;
   }
 
   .activity-side {
