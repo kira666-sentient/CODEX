@@ -136,14 +136,14 @@ export default function FnbLanding({ onSignIn }: FnbLandingProps) {
               <span className="landing-feature-step">02</span>
               <div>
                 <strong>Log &amp; approve together</strong>
-                <p>Either side can log an expense. It only becomes real once the other person approves — no surprises, no disputes.</p>
+                <p>Either side can log an expense or a shared item. It only becomes real once the other person approves — no surprises, no disputes.</p>
               </div>
             </div>
             <div className="landing-feature-item">
               <span className="landing-feature-step">03</span>
               <div>
                 <strong>Settle &amp; close</strong>
-                <p>When money moves, record it. The balance resets cleanly and the history stays for both sides forever.</p>
+                <p>When money moves or an item is returned, record it and wait for confirmation. The history stays for both sides forever.</p>
               </div>
             </div>
           </div>

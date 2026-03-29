@@ -56,7 +56,7 @@ create table if not exists shared_items (
   friend_id uuid not null references profiles(id) on delete cascade,
   item_name text not null,
   type text not null check (type in ('gave', 'borrowed')),
-  status text not null default 'active' check (status in ('active', 'returned')),
+  status text not null default 'pending' check (status in ('pending', 'active', 'pending_return', 'returned', 'rejected')),
   created_at timestamptz not null default now()
 );
 

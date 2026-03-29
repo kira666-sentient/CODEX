@@ -180,6 +180,34 @@ export default function FnbApp() {
   // About State
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
 
+  // --- Physical Back Button Support ---
+  useEffect(() => {
+    // Whenever a mobile page changes from "home" or a dialog opens, push a state
+    const isAnyDialogOpen = isSidebarOpen || isInviteFormOpen || isApprovalsDialogOpen || isProfileDialogOpen || isStatementDialogOpen || isDebtDialogOpen || isSettlementDialogOpen || isItemsDialogOpen || isAboutDialogOpen;
+    const isSubPage = mobilePage !== "home";
+
+    if (isSubPage || isAnyDialogOpen) {
+      window.history.pushState({ modalOrPageOpen: true }, "");
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      // User pressed back button
+      if (isAboutDialogOpen) { setIsAboutDialogOpen(false); return; }
+      if (isItemsDialogOpen) { setIsItemsDialogOpen(false); return; }
+      if (isSettlementDialogOpen) { setIsSettlementDialogOpen(false); return; }
+      if (isDebtDialogOpen) { setIsDebtDialogOpen(false); return; }
+      if (isStatementDialogOpen) { setIsStatementDialogOpen(false); return; }
+      if (isProfileDialogOpen) { setIsProfileDialogOpen(false); return; }
+      if (isApprovalsDialogOpen) { setIsApprovalsDialogOpen(false); return; }
+      if (isInviteFormOpen) { setIsInviteFormOpen(false); return; }
+      if (isSidebarOpen) { setIsSidebarOpen(false); return; }
+      if (mobilePage !== "home") { setMobilePage("home"); return; }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [mobilePage, isSidebarOpen, isInviteFormOpen, isApprovalsDialogOpen, isProfileDialogOpen, isStatementDialogOpen, isDebtDialogOpen, isSettlementDialogOpen, isItemsDialogOpen, isAboutDialogOpen]);
+
   // --- Toast auto-dismiss ---
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastExiting, setToastExiting] = useState(false);
@@ -762,6 +790,18 @@ export default function FnbApp() {
     );
   }, [dashboard.settlements, session?.user]);
 
+  const pendingItems = useMemo(() => {
+    if (!session?.user) return [];
+    return dashboard.sharedItems.filter(item => {
+      // Need approval if:
+      // 1. New item: status === 'pending' AND I am the friend_id
+      if (item.status === 'pending' && item.friend_id === session.user.id) return true;
+      // 2. Return request: status === 'pending_return' AND I am the owner_id
+      if (item.status === 'pending_return' && item.owner_id === session.user.id) return true;
+      return false;
+    });
+  }, [dashboard.sharedItems, session?.user]);
+
   const recentActivity = useMemo<ActivityItem[]>(() => {
     if (!session?.user) {
       return [];
@@ -1290,26 +1330,69 @@ export default function FnbApp() {
         friend_id: itemForm.friendId,
         item_name: itemForm.name.trim(),
         type: itemForm.type,
-        status: "active"
+        status: "pending"
       });
 
       if (saveError) {
         setError(getErrorMessage(saveError));
       } else {
-        setFeedback(`Recorded that you ${itemForm.type === "gave" ? "lent" : "borrowed"} an item.`);
+        setFeedback(`Item logged. Waiting for ${dashboard.profiles.find(p => p.id === itemForm.friendId)?.full_name || 'friend'} to approve.`);
         setItemForm({ name: "", type: "gave", friendId: "", date: new Date().toISOString().slice(0, 10) });
         setIsItemsDialogOpen(false);
-        await loadDashboard(session.user.id, { silent: true });
+        await refreshData();
       }
     });
   };
 
-  const removeItem = async (id: string, e?: React.MouseEvent) => {
+  const requestItemReturn = async (id: string, e?: React.MouseEvent) => {
     const client = supabase;
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
+    if (!session?.user || !client) return;
+
+    startMutation(async () => {
+      const { error: updateError } = await client
+        .from("shared_items")
+        .update({ status: "pending_return" })
+        .eq("id", id);
+
+      if (updateError) {
+        setError(getErrorMessage(updateError));
+      } else {
+        setFeedback("Return request sent.");
+        await refreshData();
+      }
+    });
+  };
+
+  const respondToItem = async (id: string, action: "approve" | "reject" | "return_confirm") => {
+    const client = supabase;
+    if (!session?.user || !client) return;
+
+    startMutation(async () => {
+      let newStatus: string = "";
+      if (action === "approve") newStatus = "active";
+      else if (action === "reject") newStatus = "rejected";
+      else if (action === "return_confirm") newStatus = "returned";
+
+      const { error: updateError } = await client
+        .from("shared_items")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (updateError) {
+        setError(getErrorMessage(updateError));
+      } else {
+        setFeedback(action === "reject" ? "Item rejected." : "Item updated.");
+        await refreshData();
+      }
+    });
+  };
+
+  const cancelItem = async (id: string) => {
+    const client = supabase;
     if (!session?.user || !client) return;
 
     startMutation(async () => {
@@ -1321,8 +1404,8 @@ export default function FnbApp() {
       if (deleteError) {
         setError(getErrorMessage(deleteError));
       } else {
-        setFeedback("Item removed.");
-        await loadDashboard(session.user.id, { silent: true });
+        setFeedback("Item cancelled.");
+        await refreshData();
       }
     });
   };
@@ -1573,12 +1656,25 @@ export default function FnbApp() {
                 {dashboard.sharedItems.map(item => (
                   <div className="list-card dense" key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <strong>{item.item_name}</strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <strong>{item.item_name}</strong>
+                        <span className={`pill status-${item.status}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>{item.status}</span>
+                      </div>
                       <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>
                         {item.type === 'gave' ? 'Lent to' : 'Borrowed from'} {dashboard.profiles.find(p => p.id === item.friend_id)?.full_name || 'friend'}
                       </p>
                     </div>
-                    <button className="ghost-button danger-ghost-button" onClick={(e) => removeItem(item.id, e)} style={{ padding: '6px' }}>Return</button>
+                    <div className="row-actions">
+                      {item.status === 'pending' && item.owner_id === session?.user?.id && (
+                        <button className="ghost-button danger-ghost-button" onClick={() => cancelItem(item.id)} style={{ padding: '6px' }}>Cancel</button>
+                      )}
+                      {item.status === 'active' && (
+                        ((item.type === 'gave' && item.friend_id === session?.user?.id) || 
+                         (item.type === 'borrowed' && item.owner_id === session?.user?.id)) ? (
+                          <button className="ghost-button" onClick={(e) => requestItemReturn(item.id, e)} style={{ padding: '6px' }}>Return</button>
+                        ) : null
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1635,8 +1731,7 @@ export default function FnbApp() {
             <div className="identity-lockup">
               <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
               <div className="brand-copy">
-                <p className="eyebrow">F&B</p>
-                <h1 className="app-title">Friends and Benefits</h1>
+                <h1 className="app-title" style={{ margin: 0 }}>Friends and Benefits</h1>
               </div>
             </div>
           </div>
@@ -1644,9 +1739,9 @@ export default function FnbApp() {
           {/* Mobile: Centered title */}
           <h1 className="app-title mobile-only" style={{ fontSize: '1.1rem', margin: 0 }}>Friends & Benefits</h1>
 
-          {/* Mobile: Help/About icon */}
+          {/* Help/About icon (visible on all breakpoints) */}
           <button
-            className="mobile-only help-icon-button"
+            className="help-icon-button"
             onClick={() => setIsAboutDialogOpen(true)}
             title="How to use & About Me"
             type="button"
@@ -1667,14 +1762,6 @@ export default function FnbApp() {
           </div>
 
           <div className="profile-strip-actions">
-            <button
-              className="help-icon-button"
-              onClick={() => setIsAboutDialogOpen(true)}
-              title="How to use & About Me"
-              type="button"
-            >
-              ❓
-            </button>
             <button
               className="primary-button profile-strip-button"
               onClick={openProfileDialog}
@@ -1832,7 +1919,7 @@ export default function FnbApp() {
           <button className="mobile-nav-card" onClick={() => setMobilePage("approvals")}>
             <span className="nav-card-icon">⏳</span>
             <span className="nav-card-label">Approvals</span>
-            <span className="nav-card-badge">{pendingApprovals.length + pendingSettlements.length} pending</span>
+            <span className="nav-card-badge">{pendingApprovals.length + pendingSettlements.length + pendingItems.length} pending</span>
           </button>
           <button className="mobile-nav-card" onClick={() => setMobilePage("money")}>
             <span className="nav-card-icon">💰</span>
@@ -2015,41 +2102,6 @@ export default function FnbApp() {
                 </div>
               </div>
             </article>
-
-            {/* --- PC Items Tracker --- */}
-            <article className="panel panel-items" style={{ marginBottom: '20px' }}>
-              <div className="section-head" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '16px', marginBottom: '16px' }}>
-                <div>
-                  <h2>Shared Items Tracker</h2>
-                  <p className="muted">Keep track of things you lent or borrowed.</p>
-                </div>
-                <button className="primary-button" onClick={() => setIsItemsDialogOpen(true)} style={{ padding: '6px 12px' }}>
-                  + Log Item
-                </button>
-              </div>
-              <div className="panel-scroll" style={{ maxHeight: 'none', height: 'auto' }}>
-                <div className="section-stack">
-                  {dashboard.sharedItems.length === 0 ? (
-                    <p className="empty-state">No shared items right now.</p>
-                  ) : (
-                    <div className="stack mini-stack">
-                      {dashboard.sharedItems.map((item: SharedItem) => (
-                        <div className="list-card dense" key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <strong>{item.item_name}</strong>
-                            <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
-                              <span className="profile-label" style={{ fontSize: '0.65rem', marginRight: '6px' }}>{item.type.toUpperCase()}</span> 
-                              {item.type === 'gave' ? 'to' : 'from'} {dashboard.profiles.find(p => p.id === item.friend_id)?.full_name || 'friend'}
-                            </p>
-                          </div>
-                          <button className="ghost-button danger-ghost-button" onClick={(e) => removeItem(item.id, e)} style={{ padding: '6px 12px' }}>Return</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </article>
           </div>
 
           <div className="dashboard-column">
@@ -2078,10 +2130,9 @@ export default function FnbApp() {
                   <strong>Create debt</strong>
                   <p>
                     Log a shared expense or cash loan. Your friend approves it from their
-                    side.
+                    device.
                   </p>
                 </button>
-
                 <button
                   className="action-option-card"
                   onClick={() => {
@@ -2100,40 +2151,95 @@ export default function FnbApp() {
               </div>
             </article>
 
-            <section className="panel activity-panel">
-              <div className="section-head">
+            {/* --- PC Items Tracker --- */}
+            <article className="panel panel-items" style={{ marginTop: '24px' }}>
+              <div className="section-head" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '16px', marginBottom: '16px' }}>
                 <div>
-                  <h2>Recent activity</h2>
-                  <p className="muted">Latest debts and settlements across your network.</p>
+                  <h2>Shared Items Tracker</h2>
+                  <p className="muted">Keep track of things you lent or borrowed.</p>
+                </div>
+                <button className="primary-button" onClick={() => setIsItemsDialogOpen(true)} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
+                  + Log Item
+                </button>
+              </div>
+              <div className="panel-scroll" style={{ maxHeight: 'none', height: 'auto' }}>
+                <div className="section-stack">
+                  {dashboard.sharedItems.length === 0 ? (
+                    <p className="empty-state">No shared items right now.</p>
+                  ) : (
+                    <div className="stack mini-stack">
+                      {dashboard.sharedItems.map((item: SharedItem) => (
+                        <div className="list-card dense" key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <strong>{item.item_name}</strong>
+                              <span className={`pill status-${item.status}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>{item.status}</span>
+                            </div>
+                            <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
+                              <span className="profile-label" style={{ fontSize: '0.65rem', marginRight: '6px' }}>{item.type.toUpperCase()}</span> 
+                              {item.type === 'gave' ? 'to' : 'from'} {dashboard.profiles.find(p => p.id === item.friend_id)?.full_name || 'friend'}
+                            </p>
+                          </div>
+                          <div className="row-actions">
+                            {item.status === 'pending' && item.owner_id === session?.user?.id && (
+                              <button className="ghost-button danger-ghost-button" onClick={() => cancelItem(item.id)} style={{ padding: '6px 12px' }}>Cancel</button>
+                            )}
+                            {item.status === 'active' && (
+                              // Show "Mark Returned" if I am the one who has it
+                              ((item.type === 'gave' && item.friend_id === session?.user?.id) || 
+                               (item.type === 'borrowed' && item.owner_id === session?.user?.id)) ? (
+                                <button className="ghost-button" onClick={(e) => requestItemReturn(item.id, e)} style={{ padding: '6px 12px' }}>Mark Returned</button>
+                              ) : (
+                                <span className="muted" style={{ fontSize: '0.8rem' }}>In use</span>
+                              )
+                            )}
+                            {item.status === 'pending_return' && (
+                              <span className="pill status-pending" style={{ fontSize: '0.7rem' }}>Returning...</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {recentActivity.length === 0 ? (
-                <p className="empty-state">No activity yet.</p>
-              ) : (
-                <div className="panel-scroll panel-scroll-activity">
-                  <div className="stack mini-stack">
-                    {recentActivity.map((item) => (
-                      <div className="list-card dense" key={`${item.kind}-${item.id}`}>
-                        <div className="person-block">
-                          <PersonIdentity profile={item.profile} />
-                          <strong>{item.label}</strong>
-                          <p>{item.detail}</p>
-                          <small>{dateTime.format(new Date(item.createdAt))}</small>
-                        </div>
-                        <div className="activity-side">
-                          <span className="amount-badge neutral">
-                            {formatCurrency(item.amountInPaise)}
-                          </span>
-                          <span className={`pill status-${item.status}`}>{item.status}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
+            </article>
           </div>
+        </section>
+
+        {/* --- Recent Activity (Full Width Below Grid) --- */}
+        <section className="panel activity-panel desktop-only" style={{ marginTop: '24px' }}>
+          <div className="section-head">
+            <div>
+              <h2>Recent activity</h2>
+              <p className="muted">Latest debts and settlements across your network.</p>
+            </div>
+          </div>
+
+          {recentActivity.length === 0 ? (
+            <p className="empty-state">No activity yet.</p>
+          ) : (
+            <div className="panel-scroll panel-scroll-activity">
+              <div className="stack mini-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                {recentActivity.map((item) => (
+                  <div className="list-card dense" key={`${item.kind}-${item.id}`}>
+                    <div className="person-block">
+                      <PersonIdentity profile={item.profile} />
+                      <strong>{item.label}</strong>
+                      <p>{item.detail}</p>
+                      <small>{dateTime.format(new Date(item.createdAt))}</small>
+                    </div>
+                    <div className="activity-side">
+                      <span className="amount-badge neutral">
+                        {formatCurrency(item.amountInPaise)}
+                      </span>
+                      <span className={`pill status-${item.status}`}>{item.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {isDebtDialogOpen && (
@@ -2471,6 +2577,7 @@ export default function FnbApp() {
                     className="primary-button"
                     onClick={() => {
                       setSettlementForm(current => ({ ...current, friendId: selectedFriend.profile.id }));
+                      setIsStatementDialogOpen(false);
                       setIsSettlementDialogOpen(true);
                     }}
                   >
@@ -2480,6 +2587,7 @@ export default function FnbApp() {
                     className="ghost-button"
                     onClick={() => {
                       setDebtForm(current => ({ ...current, friendId: selectedFriend.profile.id }));
+                      setIsStatementDialogOpen(false);
                       setIsDebtDialogOpen(true);
                     }}
                   >
@@ -2561,8 +2669,8 @@ export default function FnbApp() {
               <div className="dialog-body">
                 <p className="muted" style={{ marginBottom: "16px" }}>These requests need your decision.</p>
 
-                {pendingApprovals.length === 0 && pendingSettlements.length === 0 ? (
-                  <p className="empty-state">No debt approvals waiting for you.</p>
+                {pendingApprovals.length === 0 && pendingSettlements.length === 0 && pendingItems.length === 0 ? (
+                  <p className="empty-state">No approvals waiting for you.</p>
                 ) : (
                   <div className="panel-scroll" style={{ maxHeight: "60vh" }}>
                     <div className="stack mini-stack">
@@ -2598,6 +2706,26 @@ export default function FnbApp() {
                           </div>
                         );
                       })}
+                      {pendingItems.map((item) => {
+                        const actor = profilesById.get(item.owner_id);
+                        const isReturn = item.status === 'pending_return';
+                        const verb = isReturn ? "wants to return" : (item.type === 'gave' ? "says they gave you" : "says you borrowed");
+                        
+                        return (
+                          <div className="list-card dense" key={item.id}>
+                            <div>
+                              <PersonIdentity profile={actor} />
+                              <p><strong>{item.item_name}</strong>: {verb}</p>
+                            </div>
+                            <div className="row-actions">
+                              <button className="primary-button" onClick={() => respondToItem(item.id, isReturn ? "return_confirm" : "approve")} disabled={mutating}>
+                                {isReturn ? "Confirm Received" : "Approve"}
+                              </button>
+                              <button className="ghost-button" onClick={() => respondToItem(item.id, "reject")} disabled={mutating}>Reject</button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2623,8 +2751,8 @@ export default function FnbApp() {
                 <ul className="muted" style={{ fontSize: '0.9rem', paddingLeft: '20px', display: 'grid', gap: '8px', marginBottom: '24px' }}>
                    <li><strong>Network:</strong> Add friends using their exact F&B username.</li>
                    <li><strong>Money:</strong> Log debts when you pay for them, or settlements when they pay you back offline.</li>
-                   <li><strong>Approvals:</strong> Once you log a money action, they must approve it!</li>
-                   <li><strong>Items:</strong> Keep an unverified list of items you&apos;ve lent out or borrowed.</li>
+                   <li><strong>Approvals:</strong> Once you log an action, the other person must approve it!</li>
+                   <li><strong>Items:</strong> Track lent/borrowed items. Both logging and returning require dual-consent to stay accurate.</li>
                 </ul>
 
                 <h3 style={{ fontSize: '1.05rem', marginBottom: '12px', borderBottom: '1px solid var(--line)', paddingBottom: '8px' }}>About the Creator</h3>

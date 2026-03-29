@@ -51,6 +51,6 @@ export type SharedItem = {
   friend_id: string;
   item_name: string;
   type: "gave" | "borrowed";
-  status: "active" | "returned";
+  status: "pending" | "active" | "pending_return" | "returned" | "rejected";
   created_at: string;
 };
