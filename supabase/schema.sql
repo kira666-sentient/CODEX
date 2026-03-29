@@ -12,6 +12,7 @@ create table if not exists friendships (
   id uuid primary key default gen_random_uuid(),
   requester_id uuid not null references profiles(id) on delete cascade,
   addressee_id uuid not null references profiles(id) on delete cascade,
+  constraint friendships_no_self check (requester_id <> addressee_id),
   status text not null check (status in ('pending', 'accepted', 'blocked')),
   created_at timestamptz not null default now(),
   responded_at timestamptz
@@ -21,6 +22,7 @@ create table if not exists debt_requests (
   id uuid primary key default gen_random_uuid(),
   creator_id uuid not null references profiles(id) on delete cascade,
   approver_id uuid not null references profiles(id) on delete cascade,
+  constraint debt_requests_no_self check (creator_id <> approver_id),
   amount_in_paise bigint not null check (amount_in_paise > 0),
   currency text not null default 'INR',
   reason text not null,
@@ -36,6 +38,7 @@ create table if not exists settlements (
   id uuid primary key default gen_random_uuid(),
   payer_id uuid not null references profiles(id) on delete cascade,
   receiver_id uuid not null references profiles(id) on delete cascade,
+  constraint settlements_no_self check (payer_id <> receiver_id),
   amount_in_paise bigint not null check (amount_in_paise > 0),
   currency text not null default 'INR',
   note text,
@@ -65,6 +68,9 @@ from (
   from settlements
 ) ledger
 group by 1, 2;
+
+create unique index if not exists friendships_pair_unique
+on friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
 
 alter table profiles enable row level security;
 alter table friendships enable row level security;
@@ -108,11 +114,11 @@ on debt_requests for insert
 to authenticated
 with check (auth.uid() = creator_id);
 
-create policy "participants can update debt requests"
+create policy "approver can update debt requests"
 on debt_requests for update
 to authenticated
-using (auth.uid() = creator_id or auth.uid() = approver_id)
-with check (auth.uid() = creator_id or auth.uid() = approver_id);
+using (auth.uid() = approver_id and status = 'pending')
+with check (auth.uid() = approver_id);
 
 create policy "settlements visible to both parties"
 on settlements for select
@@ -123,3 +129,50 @@ create policy "payer can create settlements"
 on settlements for insert
 to authenticated
 with check (auth.uid() = payer_id);
+
+create or replace function validate_debt_request_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if old.status <> 'pending' then
+    raise exception 'This debt request has already been responded to.';
+  end if;
+
+  if auth.uid() is distinct from old.approver_id then
+    raise exception 'Only the approver can respond to this debt request.';
+  end if;
+
+  if new.creator_id <> old.creator_id
+    or new.approver_id <> old.approver_id
+    or new.amount_in_paise <> old.amount_in_paise
+    or new.currency <> old.currency
+    or new.reason <> old.reason
+    or new.debt_date <> old.debt_date
+    or new.due_at is distinct from old.due_at
+    or new.created_at <> old.created_at then
+    raise exception 'Debt request details cannot be edited after creation.';
+  end if;
+
+  if new.status not in ('approved', 'rejected') then
+    raise exception 'Debt requests can only be approved or rejected.';
+  end if;
+
+  if new.status = 'approved' and (new.approved_at is null or new.rejected_at is not null) then
+    raise exception 'Approved debt requests must only set approved_at.';
+  end if;
+
+  if new.status = 'rejected' and (new.rejected_at is null or new.approved_at is not null) then
+    raise exception 'Rejected debt requests must only set rejected_at.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists debt_request_update_guard on debt_requests;
+
+create trigger debt_request_update_guard
+before update on debt_requests
+for each row
+execute function validate_debt_request_update();

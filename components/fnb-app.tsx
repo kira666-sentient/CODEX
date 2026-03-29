@@ -1309,9 +1309,9 @@ export default function FnbApp() {
             </div>
 
             <div className="form-grid compact-grid">
-              <label>
-                <span>Invite by username</span>
+              <label className="field-no-label">
                 <input
+                  aria-label="Invite by username"
                   value={inviteUsername}
                   onChange={(event) => setInviteUsername(event.target.value)}
                   placeholder="friend_username"
@@ -1441,101 +1441,133 @@ export default function FnbApp() {
           </article>
         </div>
 
-        <article className="panel panel-money">
-          <div className="section-head">
-            <div>
-              <h2>Money actions</h2>
-              <p className="muted">
-                Open a focused flow for either creating a debt or recording a direct
-                settlement.
-              </p>
+        <div className="dashboard-column">
+          <article className="panel panel-money">
+            <div className="section-head">
+              <div>
+                <h2>Money actions</h2>
+                <p className="muted">
+                  Open a focused flow for either creating a debt or recording a direct
+                  settlement.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="action-option-grid">
-            <button
-              className="action-option-card"
-              onClick={() => setIsDebtDialogOpen(true)}
-              type="button"
-            >
-              <span className="profile-label">Approval flow</span>
-              <strong>Create debt</strong>
-              <p>
-                Log a shared expense or cash loan. Your friend approves it from their side.
-              </p>
-            </button>
+            <div className="action-option-grid">
+              <button
+                className="action-option-card"
+                onClick={() => setIsDebtDialogOpen(true)}
+                type="button"
+              >
+                <span className="profile-label">Approval flow</span>
+                <strong>Create debt</strong>
+                <p>
+                  Log a shared expense or cash loan. Your friend approves it from their
+                  side.
+                </p>
+              </button>
 
-            <button
-              className="action-option-card"
-              onClick={() => setIsSettlementDialogOpen(true)}
-              type="button"
-            >
-              <span className="profile-label">Direct payment</span>
-              <strong>Record settlement</strong>
-              <p>
-                Note a payment already made outside the app so balances stay accurate.
-              </p>
-            </button>
-          </div>
+              <button
+                className="action-option-card"
+                onClick={() => setIsSettlementDialogOpen(true)}
+                type="button"
+              >
+                <span className="profile-label">Direct payment</span>
+                <strong>Record settlement</strong>
+                <p>
+                  Note a payment already made outside the app so balances stay accurate.
+                </p>
+              </button>
+            </div>
+          </article>
 
-          <div className="hint-banner">
-            These actions now open in dialogs so the dashboard stays stable even as your
-            friend list, activity, and approvals grow.
-          </div>
-        </article>
-      </section>
+          <section className="panel inbox-panel">
+            <div className="section-head">
+              <div>
+                <h2>Pending approvals</h2>
+                <p className="muted">These requests need your decision.</p>
+              </div>
+              <span className="count-chip count-chip-strong">{pendingApprovals.length}</span>
+            </div>
 
-      <section className="panel inbox-panel">
-        <div className="section-head">
-          <div>
-            <h2>Pending approvals</h2>
-            <p className="muted">These requests need your decision.</p>
-          </div>
-          <span className="count-chip count-chip-strong">{pendingApprovals.length}</span>
+            {pendingApprovals.length === 0 ? (
+              <p className="empty-state">No debt approvals waiting for you.</p>
+            ) : (
+              <div className="panel-scroll panel-scroll-approvals">
+                <div className="stack mini-stack">
+                  {pendingApprovals.map((request) => {
+                    const creator = profilesById.get(request.creator_id);
+
+                    return (
+                      <div className="list-card dense" key={request.id}>
+                        <div>
+                          <PersonIdentity profile={creator} />
+                          <p>
+                            {formatCurrency(request.amount_in_paise)} for {request.reason}
+                          </p>
+                          <small>
+                            Debt date {dateOnly.format(new Date(request.debt_date))} - Due{" "}
+                            {formatDate(request.due_at)}
+                          </small>
+                        </div>
+                        <div className="row-actions">
+                          <button
+                            className="primary-button"
+                            onClick={() => respondToDebt(request.id, true)}
+                            disabled={mutating}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="ghost-button"
+                            onClick={() => respondToDebt(request.id, false)}
+                            disabled={mutating}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="panel activity-panel">
+            <div className="section-head">
+              <div>
+                <h2>Recent activity</h2>
+                <p className="muted">Latest debts and settlements across your network.</p>
+              </div>
+            </div>
+
+            {recentActivity.length === 0 ? (
+              <p className="empty-state">No activity yet.</p>
+            ) : (
+              <div className="panel-scroll panel-scroll-activity">
+                <div className="stack mini-stack">
+                  {recentActivity.map((item) => (
+                    <div className="list-card dense" key={`${item.kind}-${item.id}`}>
+                      <div className="person-block">
+                        <PersonIdentity profile={item.profile} />
+                        <strong>{item.label}</strong>
+                        <p>{item.detail}</p>
+                        <small>{dateTime.format(new Date(item.createdAt))}</small>
+                      </div>
+                      <div className="activity-side">
+                        <span className="amount-badge neutral">
+                          {formatCurrency(item.amountInPaise)}
+                        </span>
+                        <span className={`pill status-${item.status}`}>{item.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         </div>
-
-        {pendingApprovals.length === 0 ? (
-          <p className="empty-state">No debt approvals waiting for you.</p>
-        ) : (
-          <div className="panel-scroll panel-scroll-approvals">
-            <div className="stack mini-stack">
-              {pendingApprovals.map((request) => {
-                const creator = profilesById.get(request.creator_id);
-
-                return (
-                  <div className="list-card dense" key={request.id}>
-                    <div>
-                      <PersonIdentity profile={creator} />
-                      <p>
-                        {formatCurrency(request.amount_in_paise)} for {request.reason}
-                      </p>
-                      <small>
-                        Debt date {dateOnly.format(new Date(request.debt_date))} - Due{" "}
-                        {formatDate(request.due_at)}
-                      </small>
-                    </div>
-                    <div className="row-actions">
-                      <button
-                        className="primary-button"
-                        onClick={() => respondToDebt(request.id, true)}
-                        disabled={mutating}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="ghost-button"
-                        onClick={() => respondToDebt(request.id, false)}
-                        disabled={mutating}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </section>
 
       {isDebtDialogOpen && (
@@ -1871,39 +1903,6 @@ export default function FnbApp() {
         </div>
       )}
 
-      <section className="panel activity-panel">
-        <div className="section-head">
-          <div>
-            <h2>Recent activity</h2>
-            <p className="muted">Latest debts and settlements across your network.</p>
-          </div>
-        </div>
-
-        {recentActivity.length === 0 ? (
-          <p className="empty-state">No activity yet.</p>
-        ) : (
-          <div className="panel-scroll panel-scroll-activity">
-            <div className="stack mini-stack">
-              {recentActivity.map((item) => (
-                <div className="list-card dense" key={`${item.kind}-${item.id}`}>
-                  <div className="person-block">
-                    <PersonIdentity profile={item.profile} />
-                    <strong>{item.label}</strong>
-                    <p>{item.detail}</p>
-                    <small>{dateTime.format(new Date(item.createdAt))}</small>
-                  </div>
-                  <div className="activity-side">
-                    <span className="amount-badge neutral">
-                      {formatCurrency(item.amountInPaise)}
-                    </span>
-                    <span className={`pill status-${item.status}`}>{item.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </section>
     </main>
   );
 }
