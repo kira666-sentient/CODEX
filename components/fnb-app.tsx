@@ -1119,36 +1119,156 @@ export default function FnbApp() {
 
   if (!session) {
     return (
-      <main className="shell">
-        <section className="hero">
-          <p className="eyebrow">F&B</p>
-          <h1>Shared debt tracking for real friendships</h1>
-          <p className="lede">
-            Log who paid, who owes, and when it gets cleared. Every debt stays
-            pending until the other person approves it, so the balance always
-            feels fair.
-          </p>
+      <main className="shell landing-shell">
+        <section className="hero landing-hero">
+          <div className="landing-hero-copy">
+            <p className="eyebrow">F&B</p>
+            <h1>Track shared money without making friendships awkward.</h1>
+            <p className="lede">
+              F&B keeps every split, payback, and approval in one place so both
+              sides always see the same story.
+            </p>
 
-          <div className="hero-card">
-            <div>
-              <span className="label">Auth</span>
-              <strong>Google only</strong>
+            <div className="landing-cta-row">
+              <button className="primary-button" onClick={signInWithGoogle} type="button">
+                Continue with Google
+              </button>
+              <div className="landing-cta-note">
+                <span className="label">Fast start</span>
+                <strong>Sign in, pick a username, invite your first friend.</strong>
+              </div>
             </div>
-            <div>
-              <span className="label">Trust model</span>
-              <strong>Two-sided approvals</strong>
-            </div>
-            <div>
-              <span className="label">Launch surface</span>
-              <strong>Phone + desktop web</strong>
+
+            <div className="hero-card landing-meta-grid">
+              <div>
+                <span className="label">Approvals</span>
+                <strong>Both sides stay aligned</strong>
+              </div>
+              <div>
+                <span className="label">Money actions</span>
+                <strong>Debts and settlements in dialogs</strong>
+              </div>
+              <div>
+                <span className="label">Where it works</span>
+                <strong>Stable on phone and desktop</strong>
+              </div>
             </div>
           </div>
 
-          <div className="action-row">
-            <button className="primary-button" onClick={signInWithGoogle}>
-              Continue with Google
-            </button>
+          <div className="landing-preview-card">
+            <div className="landing-preview-head">
+              <div>
+                <span className="profile-label">Live with less chaos</span>
+                <h2>One dashboard, clear next actions</h2>
+              </div>
+              <span className="pill">Warm by design</span>
+            </div>
+
+            <div className="landing-preview-stats">
+              <article className="landing-preview-stat">
+                <span className="label">Invite friends</span>
+                <strong>@username based</strong>
+                <p>No phonebook scraping, no messy linking.</p>
+              </article>
+              <article className="landing-preview-stat">
+                <span className="label">Pending approvals</span>
+                <strong>Decision-ready</strong>
+                <p>Approve or reject requests without losing context.</p>
+              </article>
+              <article className="landing-preview-stat">
+                <span className="label">Recent activity</span>
+                <strong>Always visible</strong>
+                <p>Latest debts and settlements stay pinned in view.</p>
+              </article>
+            </div>
+
+            <div className="landing-preview-feed">
+              <div className="landing-feed-row">
+                <div>
+                  <strong>Dinner split</strong>
+                  <p>Neha owes you</p>
+                </div>
+                <span className="amount-badge positive">{formatCurrency(124000)}</span>
+              </div>
+              <div className="landing-feed-row">
+                <div>
+                  <strong>Cab home</strong>
+                  <p>Awaiting approval</p>
+                </div>
+                <span className="pill status-pending">pending</span>
+              </div>
+              <div className="landing-feed-row">
+                <div>
+                  <strong>UPI payback</strong>
+                  <p>Settlement recorded</p>
+                </div>
+                <span className="pill status-approved">settled</span>
+              </div>
+            </div>
           </div>
+        </section>
+
+        <section className="landing-grid">
+          <article className="panel landing-panel">
+            <div className="section-head landing-section-head">
+              <div>
+                <p className="eyebrow">Why it works</p>
+                <h2>Built for clarity, not accounting theater.</h2>
+              </div>
+            </div>
+
+            <div className="landing-feature-list">
+              <div className="landing-feature-item">
+                <span className="landing-feature-step">01</span>
+                <div>
+                  <strong>Add people by username</strong>
+                  <p>Keep your network deliberate and easy to search.</p>
+                </div>
+              </div>
+              <div className="landing-feature-item">
+                <span className="landing-feature-step">02</span>
+                <div>
+                  <strong>Create a debt only when it matters</strong>
+                  <p>Dialogs keep the dashboard steady while you log amount, date, and reason.</p>
+                </div>
+              </div>
+              <div className="landing-feature-item">
+                <span className="landing-feature-step">03</span>
+                <div>
+                  <strong>Record settlements after payment happens</strong>
+                  <p>Balances update cleanly without forcing extra ceremony.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="panel landing-panel landing-panel-soft">
+            <div className="section-head landing-section-head">
+              <div>
+                <p className="eyebrow">Product shape</p>
+                <h2>Everything important stays on one calm screen.</h2>
+              </div>
+            </div>
+
+            <div className="landing-check-grid">
+              <div className="landing-check-card">
+                <strong>Profile strip</strong>
+                <p>Your identity and edit actions stay visible without crowding the header.</p>
+              </div>
+              <div className="landing-check-card">
+                <strong>Money actions</strong>
+                <p>Debt and settlement flows open in dialogs, which keeps the layout from jumping.</p>
+              </div>
+              <div className="landing-check-card">
+                <strong>Right-column focus</strong>
+                <p>Pending approvals and recent activity stay easy to scan at a glance.</p>
+              </div>
+              <div className="landing-check-card">
+                <strong>Friend statements</strong>
+                <p>Open the full history with one person only when you need detail.</p>
+              </div>
+            </div>
+          </article>
         </section>
       </main>
     );
