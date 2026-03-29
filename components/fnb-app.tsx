@@ -1120,17 +1120,38 @@ export default function FnbApp() {
   if (!session) {
     return (
       <main className="shell landing-shell">
+        <div aria-hidden="true" className="landing-world">
+          <div className="landing-world-side landing-world-left">
+            <LandingBearScene />
+          </div>
+          <div className="landing-world-side landing-world-right">
+            <LandingWaterfallScene />
+          </div>
+        </div>
+
         <section className="hero landing-hero">
           <div className="landing-hero-copy">
             <p className="eyebrow">F&B</p>
-            <h1>Track shared money without making friendships awkward.</h1>
+            <h1 className="landing-title">
+              <span>Track</span>
+              <span>shared</span>
+              <span>money</span>
+              <span>without</span>
+              <span>making</span>
+              <span>friendships</span>
+              <span>awkward.</span>
+            </h1>
             <p className="lede">
               F&B keeps every split, payback, and approval in one place so both
               sides always see the same story.
             </p>
 
-            <div className="landing-cta-row">
-              <button className="primary-button" onClick={signInWithGoogle} type="button">
+            <div className="landing-cta-stack">
+              <button
+                className="primary-button landing-google-button"
+                onClick={signInWithGoogle}
+                type="button"
+              >
                 Continue with Google
               </button>
               <div className="landing-cta-note">
@@ -1164,56 +1185,95 @@ export default function FnbApp() {
               <span className="pill">Warm by design</span>
             </div>
 
-            <div className="landing-preview-stats">
-              <article className="landing-preview-stat">
-                <span className="label">Invite friends</span>
-                <strong>@username based</strong>
-                <p>No phonebook scraping, no messy linking.</p>
-              </article>
-              <article className="landing-preview-stat">
-                <span className="label">Pending approvals</span>
-                <strong>Decision-ready</strong>
-                <p>Approve or reject requests without losing context.</p>
-              </article>
-              <article className="landing-preview-stat">
-                <span className="label">Recent activity</span>
-                <strong>Always visible</strong>
-                <p>Latest debts and settlements stay pinned in view.</p>
-              </article>
-            </div>
+            <div className="landing-preview-dashboard">
+              <article className="landing-preview-focus-card">
+                <div className="landing-preview-focus-copy">
+                  <span className="label">Pending approval</span>
+                  <strong>Cab ride home</strong>
+                  <p>
+                    Arjun logged tonight&apos;s ride. Review it before it lands in the
+                    balance.
+                  </p>
+                </div>
 
-            <div className="landing-preview-feed">
-              <div className="landing-feed-row">
-                <div>
-                  <strong>Dinner split</strong>
-                  <p>Neha owes you</p>
+                <div className="landing-preview-focus-side">
+                  <span className="amount-badge neutral">{formatCurrency(46000)}</span>
+                  <div className="landing-preview-decision-row">
+                    <span className="landing-preview-decision landing-preview-decision-approve">
+                      Approve
+                    </span>
+                    <span className="landing-preview-decision landing-preview-decision-reject">
+                      Reject
+                    </span>
+                  </div>
                 </div>
-                <span className="amount-badge positive">{formatCurrency(124000)}</span>
+              </article>
+
+              <div className="landing-preview-main-grid">
+                <article className="landing-preview-tile landing-preview-balance-tile">
+                  <span className="label">Live balance</span>
+                  <strong>You are up {formatCurrency(124000)}</strong>
+                  <p>Dinner is approved. Movie tickets are still waiting on one reply.</p>
+                  <div className="landing-preview-balance-bar">
+                    <span className="landing-preview-balance-fill" />
+                  </div>
+                </article>
+
+                <article className="landing-preview-tile landing-preview-network-tile">
+                  <span className="label">Network</span>
+                  <strong>4 friends connected</strong>
+                  <div className="landing-preview-avatars">
+                    <span>NK</span>
+                    <span>AR</span>
+                    <span>SM</span>
+                    <span>+1</span>
+                  </div>
+                  <p>Invite by username and open statements only when you need detail.</p>
+                </article>
               </div>
-              <div className="landing-feed-row">
-                <div>
-                  <strong>Cab home</strong>
-                  <p>Awaiting approval</p>
+
+              <div className="landing-preview-activity-list">
+                <div className="landing-preview-activity-row">
+                  <div>
+                    <strong>Dinner split</strong>
+                    <p>Neha owes you</p>
+                  </div>
+                  <span className="amount-badge positive">{formatCurrency(124000)}</span>
                 </div>
-                <span className="pill status-pending">pending</span>
-              </div>
-              <div className="landing-feed-row">
-                <div>
-                  <strong>UPI payback</strong>
-                  <p>Settlement recorded</p>
+                <div className="landing-preview-activity-row">
+                  <div>
+                    <strong>Recent activity</strong>
+                    <p>UPI payback recorded after lunch</p>
+                  </div>
+                  <span className="pill status-approved">settled</span>
                 </div>
-                <span className="pill status-approved">settled</span>
+                <div className="landing-preview-activity-row">
+                  <div>
+                    <strong>Invite flow</strong>
+                    <p>@riya.m is waiting for your invite to land</p>
+                  </div>
+                  <span className="pill status-pending">sent</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
+        <div className="landing-scroll-cue">
+          <span className="landing-scroll-dot" />
+          Scroll the flow
+        </div>
+
         <section className="landing-grid">
-          <article className="panel landing-panel">
+          <article className="panel landing-panel landing-story-panel">
             <div className="section-head landing-section-head">
               <div>
-                <p className="eyebrow">Why it works</p>
-                <h2>Built for clarity, not accounting theater.</h2>
+                <p className="eyebrow">Scroll the flow</p>
+                <h2>A debt turns into clarity in three calm beats.</h2>
+                <p className="muted landing-panel-lede">
+                  The app does less talking and more organizing, so the next move is
+                  always obvious.
+                </p>
               </div>
             </div>
 
@@ -1222,42 +1282,46 @@ export default function FnbApp() {
                 <span className="landing-feature-step">01</span>
                 <div>
                   <strong>Add people by username</strong>
-                  <p>Keep your network deliberate and easy to search.</p>
+                  <p>Your network stays intentional, searchable, and free of contact-list mess.</p>
                 </div>
               </div>
               <div className="landing-feature-item">
                 <span className="landing-feature-step">02</span>
                 <div>
-                  <strong>Create a debt only when it matters</strong>
-                  <p>Dialogs keep the dashboard steady while you log amount, date, and reason.</p>
+                  <strong>Approve before it affects the balance</strong>
+                  <p>Nothing becomes truth until the other side confirms it.</p>
                 </div>
               </div>
               <div className="landing-feature-item">
                 <span className="landing-feature-step">03</span>
                 <div>
                   <strong>Record settlements after payment happens</strong>
-                  <p>Balances update cleanly without forcing extra ceremony.</p>
+                  <p>Once someone pays back, the balance closes cleanly without extra drama.</p>
                 </div>
               </div>
             </div>
           </article>
 
-          <article className="panel landing-panel landing-panel-soft">
+          <article className="panel landing-panel landing-panel-soft landing-proof-panel">
             <div className="section-head landing-section-head">
               <div>
-                <p className="eyebrow">Product shape</p>
-                <h2>Everything important stays on one calm screen.</h2>
+                <p className="eyebrow">What stays visible</p>
+                <h2>The dashboard keeps the next move in plain sight.</h2>
+                <p className="muted landing-panel-lede">
+                  Strong hierarchy up top, calm detail below, and dialogs whenever the
+                  page should stay stable.
+                </p>
               </div>
             </div>
 
             <div className="landing-check-grid">
               <div className="landing-check-card">
                 <strong>Profile strip</strong>
-                <p>Your identity and edit actions stay visible without crowding the header.</p>
+                <p>Your identity lives below the header, where it is visible but not noisy.</p>
               </div>
               <div className="landing-check-card">
                 <strong>Money actions</strong>
-                <p>Debt and settlement flows open in dialogs, which keeps the layout from jumping.</p>
+                <p>Debt and settlement flows stay inside dialogs so the main layout never jumps.</p>
               </div>
               <div className="landing-check-card">
                 <strong>Right-column focus</strong>
@@ -1265,7 +1329,7 @@ export default function FnbApp() {
               </div>
               <div className="landing-check-card">
                 <strong>Friend statements</strong>
-                <p>Open the full history with one person only when you need detail.</p>
+                <p>Open the full history with one person only when you actually want the detail.</p>
               </div>
             </div>
           </article>
@@ -2042,6 +2106,166 @@ function Avatar({
         <span>{initialsFor(profile)}</span>
       )}
     </div>
+  );
+}
+
+function LandingBearScene() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="landing-scene-svg"
+      fill="none"
+      focusable="false"
+      viewBox="0 0 440 560"
+    >
+      <ellipse
+        cx="214"
+        cy="504"
+        fill="rgba(89, 130, 87, 0.18)"
+        rx="164"
+        ry="36"
+      />
+      <rect
+        className="scene-tree-trunk"
+        fill="#8f5d3b"
+        height="220"
+        rx="34"
+        width="74"
+        x="84"
+        y="164"
+      />
+      <g className="scene-tree-canopy">
+        <circle cx="76" cy="150" fill="#88b276" r="64" />
+        <circle cx="144" cy="118" fill="#7ca56c" r="76" />
+        <circle cx="220" cy="148" fill="#8fbf79" r="72" />
+        <circle cx="122" cy="198" fill="#749d64" r="58" />
+      </g>
+      <g className="scene-leaf-group">
+        <circle className="scene-leaf scene-leaf-a" cx="258" cy="142" fill="#b06d3d" r="8" />
+        <circle className="scene-leaf scene-leaf-b" cx="286" cy="176" fill="#d78b4f" r="6" />
+        <circle className="scene-leaf scene-leaf-c" cx="248" cy="204" fill="#e49d5e" r="5" />
+      </g>
+      <path
+        d="M38 430c42-40 86-60 130-60 40 0 66 12 100 30 22 12 58 30 114 32v52H38z"
+        fill="rgba(121, 160, 96, 0.25)"
+      />
+      <g className="scene-bear">
+        <ellipse cx="254" cy="398" fill="#6c4a33" rx="86" ry="42" />
+        <ellipse cx="320" cy="366" fill="#6c4a33" rx="40" ry="34" />
+        <circle cx="338" cy="340" fill="#6c4a33" r="14" />
+        <circle cx="306" cy="340" fill="#6c4a33" r="14" />
+        <ellipse cx="320" cy="372" fill="#8f6444" rx="22" ry="14" />
+        <circle cx="312" cy="366" fill="#1f1a14" r="3.5" />
+        <circle cx="328" cy="366" fill="#1f1a14" r="3.5" />
+        <path
+          d="M315 377c5 4 11 4 16 0"
+          stroke="#1f1a14"
+          strokeLinecap="round"
+          strokeWidth="3"
+        />
+        <ellipse cx="204" cy="414" fill="#7f583d" rx="20" ry="14" />
+        <ellipse cx="252" cy="430" fill="#7f583d" rx="20" ry="14" />
+        <ellipse cx="284" cy="430" fill="#7f583d" rx="20" ry="14" />
+        <ellipse cx="160" cy="392" fill="#6c4a33" rx="24" ry="20" />
+      </g>
+      <g className="scene-grass">
+        <path
+          d="M120 468c10-18 12-32 8-48 18 14 22 34 14 52"
+          stroke="#6d9a5d"
+          strokeLinecap="round"
+          strokeWidth="6"
+        />
+        <path
+          d="M144 470c14-18 18-38 14-58 18 18 22 42 8 60"
+          stroke="#82ad69"
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+        <path
+          d="M338 468c-8-20-8-34-2-48-20 12-28 32-18 50"
+          stroke="#7aa562"
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+      </g>
+    </svg>
+  );
+}
+
+function LandingWaterfallScene() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="landing-scene-svg"
+      fill="none"
+      focusable="false"
+      viewBox="0 0 440 560"
+    >
+      <ellipse
+        cx="236"
+        cy="498"
+        fill="rgba(98, 162, 185, 0.15)"
+        rx="150"
+        ry="34"
+      />
+      <path
+        d="M322 74c36 34 58 86 58 144 0 66-28 130-72 182l-60-22c36-46 60-98 60-162 0-54-14-100-44-142z"
+        fill="#8a816f"
+      />
+      <path
+        d="M244 52c-18 44-28 82-28 138 0 78 18 148 54 228l-92 18c-30-84-44-150-44-232 0-60 12-110 40-160z"
+        fill="#9a917e"
+      />
+      <path
+        className="scene-waterfall-stream scene-waterfall-stream-back"
+        d="M246 68c-16 46-22 84-22 136 0 86 20 166 48 250"
+        stroke="#d6eef6"
+        strokeLinecap="round"
+        strokeWidth="38"
+      />
+      <path
+        className="scene-waterfall-stream scene-waterfall-stream-front"
+        d="M220 78c-10 40-14 72-14 122 0 86 22 162 54 244"
+        stroke="#b8e6f4"
+        strokeLinecap="round"
+        strokeWidth="18"
+      />
+      <path
+        className="scene-waterfall-shimmer"
+        d="M196 120c8 44 8 86 14 130 8 54 24 118 56 186"
+        stroke="rgba(255,255,255,0.55)"
+        strokeLinecap="round"
+        strokeWidth="8"
+      />
+      <ellipse cx="216" cy="454" fill="#97d9e8" rx="112" ry="28" />
+      <ellipse cx="230" cy="446" fill="rgba(219,244,251,0.8)" rx="78" ry="16" />
+      <g className="scene-mist">
+        <circle cx="150" cy="418" fill="rgba(255,255,255,0.58)" r="18" />
+        <circle cx="174" cy="434" fill="rgba(255,255,255,0.42)" r="13" />
+        <circle cx="272" cy="420" fill="rgba(255,255,255,0.54)" r="16" />
+        <circle cx="298" cy="434" fill="rgba(255,255,255,0.36)" r="11" />
+      </g>
+      <g className="scene-fern">
+        <path
+          d="M104 476c12-18 20-40 18-64 18 18 16 48-6 70"
+          stroke="#6d9a5d"
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+        <path
+          d="M84 478c6-18 6-36 0-54 18 10 24 34 12 56"
+          stroke="#7eae66"
+          strokeLinecap="round"
+          strokeWidth="4"
+        />
+        <path
+          d="M346 478c-10-18-18-38-16-60-18 18-18 44 2 62"
+          stroke="#6f9e5a"
+          strokeLinecap="round"
+          strokeWidth="5"
+        />
+      </g>
+    </svg>
   );
 }
 
