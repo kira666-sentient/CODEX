@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="64" fill="url(#bg)"/>
+  <rect x="18" y="18" width="220" height="220" rx="50" fill="url(#glass)" stroke="rgba(255,248,237,0.6)"/>
+  <circle cx="78" cy="78" r="34" fill="url(#sun)"/>
+  <path d="M78 52C63.6406 52 52 63.6406 52 78V160H71.4V129.4H102.8V113.2H71.4V86.8H109.6V70.6H71.4V78C71.4 81.6451 68.4451 84.6 64.8 84.6C61.1549 84.6 58.2 81.6451 58.2 78C58.2 67.0648 67.0648 58.2 78 58.2H114.4V52H78Z" fill="#1F1A14"/>
+  <path d="M147.4 52H180.2C199.972 52 216 68.0281 216 87.8C216 102.123 207.666 114.5 195.6 120.269C208.996 125.217 218.6 138.082 218.6 153.2C218.6 172.972 202.572 189 182.8 189H147.4V52ZM166.8 69.4V113.4H180.2C190.344 113.4 198.6 105.144 198.6 95C198.6 84.856 190.344 76.6 180.2 76.6H170.8C168.591 76.6 166.8 74.8091 166.8 72.6V69.4ZM166.8 129.6V171.6H182.8C192.944 171.6 201.2 163.344 201.2 153.2C201.2 143.056 192.944 134.8 182.8 134.8H170.8C168.591 134.8 166.8 133.009 166.8 130.8V129.6Z" fill="#1F1A14"/>
+  <path d="M116.489 160.827C116.489 145.25 126.945 132.56 141.793 132.56C151.46 132.56 157.956 137.353 161.307 143.106L148.857 150.58C147.18 147.229 144.069 144.837 139.994 144.837C133.498 144.837 129.183 150.1 129.183 157.431C129.183 164.762 133.498 170.024 139.994 170.024C144.069 170.024 147.18 167.632 148.857 164.281L161.307 171.755C157.956 177.389 151.46 182.302 141.793 182.302C126.945 182.302 116.489 169.611 116.489 154.035V160.827Z" fill="url(#accent)"/>
+  <path d="M109.6 93.75L118.541 81.5H131.556L120.18 97.236L134.547 117.5H121.359L113.396 106.107L105.345 117.5H92.1562L106.783 97.0635L95.4062 81.5H108.422L116.385 92.9795L109.6 93.75Z" fill="url(#accent)"/>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="214" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF6EA"/>
+      <stop offset="0.55" stop-color="#FFE4D2"/>
+      <stop offset="1" stop-color="#FCD7BC"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="128" y1="18" x2="128" y2="238" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF8" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#FFF2E4" stop-opacity="0.88"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="52" y1="52" x2="104" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D8612B"/>
+      <stop offset="1" stop-color="#F7A45E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="92.1562" y1="81.5" x2="218.6" y2="182.302" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D8612B"/>
+      <stop offset="1" stop-color="#F58A55"/>
+    </linearGradient>
+  </defs>
+</svg>

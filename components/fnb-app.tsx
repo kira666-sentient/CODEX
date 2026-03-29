@@ -1143,16 +1143,21 @@ export default function FnbApp() {
     <main className="shell app-shell">
       <section className="topbar">
         <div className="identity-lockup">
-          <Avatar profile={dashboard.profile} size="large" />
-          <div>
+          <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
+          <div className="brand-copy">
             <p className="eyebrow">F&B</p>
             <h1 className="app-title">Friends and Benefits</h1>
-            <p className="top-copy">
-              Welcome back, {dashboard.profile?.full_name ?? session.user.email}.
-            </p>
-            <p className="top-copy">
-              Your username: @{dashboard.profile?.username ?? "not-set"}
-            </p>
+            <div className="profile-summary">
+              <Avatar profile={dashboard.profile} size="medium" />
+              <div className="profile-summary-copy">
+                <p className="top-copy">
+                  Welcome back, {dashboard.profile?.full_name ?? session.user.email}.
+                </p>
+                <p className="top-copy">
+                  Your username: @{dashboard.profile?.username ?? "not-set"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
