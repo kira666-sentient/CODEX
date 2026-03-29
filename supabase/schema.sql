@@ -43,6 +43,9 @@ create table if not exists settlements (
   currency text not null default 'INR',
   note text,
   settled_at timestamptz not null default now(),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  approved_at timestamptz,
+  rejected_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -66,6 +69,7 @@ from (
     payer_id as b_id,
     -amount_in_paise as delta_in_paise
   from settlements
+  where status = 'approved'
 ) ledger
 group by 1, 2;
 
@@ -130,6 +134,12 @@ on settlements for insert
 to authenticated
 with check (auth.uid() = payer_id);
 
+create policy "receiver can update settlements"
+on settlements for update
+to authenticated
+using (auth.uid() = receiver_id and status = 'pending')
+with check (auth.uid() = receiver_id);
+
 create or replace function validate_debt_request_update()
 returns trigger
 language plpgsql
@@ -176,3 +186,49 @@ create trigger debt_request_update_guard
 before update on debt_requests
 for each row
 execute function validate_debt_request_update();
+
+create or replace function validate_settlement_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  if old.status <> 'pending' then
+    raise exception 'This settlement has already been responded to.';
+  end if;
+
+  if auth.uid() is distinct from old.receiver_id then
+    raise exception 'Only the receiver can respond to this settlement.';
+  end if;
+
+  if new.payer_id <> old.payer_id
+    or new.receiver_id <> old.receiver_id
+    or new.amount_in_paise <> old.amount_in_paise
+    or new.currency <> old.currency
+    or new.note is distinct from old.note
+    or new.settled_at <> old.settled_at
+    or new.created_at <> old.created_at then
+    raise exception 'Settlement details cannot be edited after creation.';
+  end if;
+
+  if new.status not in ('approved', 'rejected') then
+    raise exception 'Settlements can only be approved or rejected.';
+  end if;
+
+  if new.status = 'approved' and (new.approved_at is null or new.rejected_at is not null) then
+    raise exception 'Approved settlements must only set approved_at.';
+  end if;
+
+  if new.status = 'rejected' and (new.rejected_at is null or new.approved_at is not null) then
+    raise exception 'Rejected settlements must only set rejected_at.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists settlement_update_guard on settlements;
+
+create trigger settlement_update_guard
+before update on settlements
+for each row
+execute function validate_settlement_update();

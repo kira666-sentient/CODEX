@@ -38,5 +38,8 @@ export type Settlement = {
   currency: string;
   note: string | null;
   settled_at: string;
+  status: "pending" | "approved" | "rejected";
+  approved_at: string | null;
+  rejected_at: string | null;
   created_at: string;
 };

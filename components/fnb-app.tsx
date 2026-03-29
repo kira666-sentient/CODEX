@@ -374,7 +374,7 @@ export default function FnbApp() {
         client
           .from("settlements")
           .select(
-            "id, payer_id, receiver_id, amount_in_paise, currency, note, settled_at, created_at"
+            "id, payer_id, receiver_id, amount_in_paise, currency, note, settled_at, status, approved_at, rejected_at, created_at"
           )
           .or(`payer_id.eq.${userId},receiver_id.eq.${userId}`)
           .order("settled_at", { ascending: false })
@@ -533,7 +533,9 @@ export default function FnbApp() {
             : -request.amount_in_paise;
       });
 
-    dashboard.settlements.forEach((settlement) => {
+    dashboard.settlements
+      .filter((settlement) => settlement.status === "approved")
+      .forEach((settlement) => {
       const friendId =
         settlement.payer_id === session.user.id
           ? settlement.receiver_id
@@ -627,12 +629,14 @@ export default function FnbApp() {
             ? `You paid ${readableProfile(selectedFriend.profile)}`
             : `${readableProfile(selectedFriend.profile)} paid you`,
         detail: settlement.note || "Settlement recorded",
-        status: "settled",
+        status: settlement.status,
         amountInPaise: settlement.amount_in_paise,
         balanceDeltaInPaise:
-          settlement.payer_id === session.user.id
-            ? settlement.amount_in_paise
-            : -settlement.amount_in_paise
+          settlement.status === "approved"
+            ? settlement.payer_id === session.user.id
+              ? settlement.amount_in_paise
+              : -settlement.amount_in_paise
+            : 0
       }));
 
     return [...statementFromDebts, ...statementFromSettlements].sort(
@@ -681,6 +685,17 @@ export default function FnbApp() {
     );
   }, [dashboard.debtRequests, session?.user]);
 
+  const pendingSettlements = useMemo(() => {
+    if (!session?.user) {
+      return [];
+    }
+
+    return dashboard.settlements.filter(
+      (settlement) =>
+        settlement.status === "pending" && settlement.receiver_id === session.user.id
+    );
+  }, [dashboard.settlements, session?.user]);
+
   const recentActivity = useMemo<ActivityItem[]>(() => {
     if (!session?.user) {
       return [];
@@ -727,7 +742,7 @@ export default function FnbApp() {
             ? `You paid ${otherName}`
             : `${otherName} paid you`,
         detail: settlement.note || "Settlement recorded",
-        status: "settled",
+        status: settlement.status,
         amountInPaise: settlement.amount_in_paise
       };
     });
@@ -1018,6 +1033,37 @@ export default function FnbApp() {
     });
   }
 
+  async function respondToSettlement(settlementId: string, approve: boolean) {
+    const client = supabase;
+
+    if (!client) {
+      return;
+    }
+
+    const readyClient = client;
+
+    resetMessages();
+
+    startMutation(async () => {
+      const { error: updateError } = await readyClient
+        .from("settlements")
+        .update(
+          approve
+            ? { status: "approved", approved_at: new Date().toISOString() }
+            : { status: "rejected", rejected_at: new Date().toISOString() }
+        )
+        .eq("id", settlementId);
+
+      if (updateError) {
+        setFailure(updateError);
+        return;
+      }
+
+      setFeedback(approve ? "Settlement approved." : "Settlement rejected.");
+      await refreshData();
+    });
+  }
+
   async function createSettlement() {
     const client = supabase;
 
@@ -1048,7 +1094,8 @@ export default function FnbApp() {
         receiver_id: settlementForm.friendId,
         amount_in_paise: amountInPaise,
         currency: "INR",
-        note: settlementForm.note.trim() || null
+        note: settlementForm.note.trim() || null,
+        status: "pending"
       });
 
       if (insertError) {
@@ -1064,6 +1111,103 @@ export default function FnbApp() {
       setIsSettlementDialogOpen(false);
       setFeedback("Settlement recorded.");
       await refreshData();
+    });
+  }
+
+  async function payOnline() {
+    const amount = Number(settlementForm.amount);
+    const amountInPaise = Math.round(amount * 100);
+
+    if (!settlementForm.friendId) {
+      setError("Choose who received the payment.");
+      return;
+    }
+
+    if (!amount || amountInPaise <= 0) {
+      setError("Enter a valid settlement amount.");
+      return;
+    }
+
+    resetMessages();
+
+    startMutation(async () => {
+      let res;
+      try {
+        res = await fetch('/api/razorpay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount_in_paise: amountInPaise })
+        });
+      } catch (e) {
+        setFailure("Failed to connect to payment server.");
+        return;
+      }
+      
+      const order = await res.json();
+      
+      if (order.error) {
+        setFailure(order.error);
+        return;
+      }
+      
+      const loaded = await new Promise((resolve) => {
+        if (document.getElementById("rzp-script")) return resolve(true);
+        const script = document.createElement("script");
+        script.id = "rzp-script";
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+
+      if (!loaded) {
+        setFailure("Razorpay SDK failed to load. Check your connection.");
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_mock", 
+        amount: order.amount,
+        currency: order.currency,
+        name: "Friends & Benefits",
+        description: "Settlement",
+        order_id: order.id.startsWith("order_mock") ? undefined : order.id,
+        handler: async function (response: any) {
+           const { error: insertError } = await supabase!.from("settlements").insert({
+             payer_id: session!.user.id,
+             receiver_id: settlementForm.friendId,
+             amount_in_paise: amountInPaise,
+             currency: "INR",
+             note: (settlementForm.note.trim() || `Online transfer: ${response.razorpay_payment_id || "demo"}`),
+             status: "approved",
+             approved_at: new Date().toISOString()
+           });
+           
+           if (insertError) {
+             setFailure("Payment succeeded but failed to log in F&B.");
+           } else {
+             setFeedback("Payment completed and settlement approved.");
+             setSettlementForm({ friendId: "", amount: "", note: "" });
+             setIsSettlementDialogOpen(false);
+           }
+           await refreshData();
+        },
+        prefill: {
+          name: dashboard.profile?.full_name || "",
+          email: session!.user.email || ""
+        }
+      };
+      
+      if (order.id.startsWith("order_mock") && options.key === "rzp_test_mock") {
+        options.handler({ razorpay_payment_id: "pay_mock_" + Date.now() });
+        return;
+      }
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function () {
+         setFailure("Payment was cancelled or failed.");
+      });
+      rzp.open();
     });
   }
 
@@ -1261,7 +1405,7 @@ export default function FnbApp() {
         </article>
         <article className="stat-card">
           <span>Pending approvals</span>
-          <strong>{pendingApprovals.length}</strong>
+          <strong>{pendingApprovals.length + pendingSettlements.length}</strong>
         </article>
       </section>
 
@@ -1457,10 +1601,10 @@ export default function FnbApp() {
                 <h2>Pending approvals</h2>
                 <p className="muted">These requests need your decision.</p>
               </div>
-              <span className="count-chip count-chip-strong">{pendingApprovals.length}</span>
+              <span className="count-chip count-chip-strong">{pendingApprovals.length + pendingSettlements.length}</span>
             </div>
 
-            {pendingApprovals.length === 0 ? (
+            {pendingApprovals.length === 0 && pendingSettlements.length === 0 ? (
               <p className="empty-state">No debt approvals waiting for you.</p>
             ) : (
               <div className="panel-scroll panel-scroll-approvals">
@@ -1491,6 +1635,40 @@ export default function FnbApp() {
                           <button
                             className="ghost-button"
                             onClick={() => respondToDebt(request.id, false)}
+                            disabled={mutating}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {pendingSettlements.map((settlement) => {
+                    const payer = profilesById.get(settlement.payer_id);
+
+                    return (
+                      <div className="list-card dense" key={settlement.id}>
+                        <div>
+                          <PersonIdentity profile={payer} />
+                          <p>
+                            {formatCurrency(settlement.amount_in_paise)} payment
+                          </p>
+                          <small>
+                            {settlement.note ? `Note: ${settlement.note}` : "No note provided"}
+                          </small>
+                        </div>
+                        <div className="row-actions">
+                          <button
+                            className="primary-button"
+                            onClick={() => respondToSettlement(settlement.id, true)}
+                            disabled={mutating}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="ghost-button"
+                            onClick={() => respondToSettlement(settlement.id, false)}
                             disabled={mutating}
                           >
                             Reject
@@ -1733,7 +1911,22 @@ export default function FnbApp() {
                   </div>
                   <div className="form-grid compact-grid">
                     <label>
-                      <span>Amount in INR</span>
+                      <div className="section-head" style={{ marginBottom: "8px", alignItems: "flex-end", gap: "12px", border: "none" }}>
+                        <span style={{ flexGrow: 1 }}>Amount in INR</span>
+                        {(() => {
+                          const formFriend = balances.find(f => f.profile.id === settlementForm.friendId);
+                          return formFriend && formFriend.balanceInPaise < 0 ? (
+                            <button 
+                              className="ghost-button topbar-compact-button"
+                              type="button"
+                              onClick={() => setSettlementForm(curr => ({ ...curr, amount: (Math.abs(formFriend.balanceInPaise) / 100).toString() }))}
+                              style={{ minHeight: "28px", padding: "4px 10px", fontSize: "0.8rem", margin: 0 }}
+                            >
+                              Pay in full
+                            </button>
+                          ) : null;
+                        })()}
+                      </div>
                       <input
                         type="number"
                         inputMode="decimal"
@@ -1748,6 +1941,19 @@ export default function FnbApp() {
                         }
                         placeholder="200"
                       />
+                      {(() => {
+                        const formFriend = balances.find(f => f.profile.id === settlementForm.friendId);
+                        const enteredAmountPaise = Number(settlementForm.amount) * 100;
+                        if (formFriend && formFriend.balanceInPaise < 0 && enteredAmountPaise > Math.abs(formFriend.balanceInPaise)) {
+                          const excess = ((enteredAmountPaise - Math.abs(formFriend.balanceInPaise)) / 100).toFixed(2);
+                          return (
+                            <span style={{ color: "var(--danger)", fontSize: "0.85rem", marginTop: "8px", display: "block" }}>
+                              Note: You are paying ₹{excess} more than you currently owe them.
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                     </label>
 
                     <label className="full-span">
@@ -1765,13 +1971,20 @@ export default function FnbApp() {
                     </label>
                   </div>
 
-                  <div className="action-row">
+                  <div className="action-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <button
-                      className="primary-button"
+                      className="ghost-button"
                       onClick={createSettlement}
                       disabled={mutating}
                     >
-                      Record settlement
+                      Record manual
+                    </button>
+                    <button
+                      className="primary-button"
+                      onClick={payOnline}
+                      disabled={mutating}
+                    >
+                      Pay online
                     </button>
                   </div>
                 </>
@@ -1809,6 +2022,19 @@ export default function FnbApp() {
                 type="button"
               >
                 X
+              </button>
+            </div>
+
+            <div className="action-row" style={{ marginTop: "16px", marginBottom: "8px" }}>
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setIsStatementDialogOpen(false);
+                  setSettlementForm(current => ({...current, friendId: selectedFriend.profile.id}));
+                  setIsSettlementDialogOpen(true);
+                }}
+              >
+                Settle up now
               </button>
             </div>
 
