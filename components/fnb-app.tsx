@@ -211,30 +211,39 @@ export default function FnbApp() {
 
     const {
       data: { subscription }
-    } = readyClient.auth.onAuthStateChange((_event, nextSession) => {
+    } = readyClient.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
-      setError(null);
-      setFeedback(null);
 
-      startMutation(async () => {
-        if (!nextSession?.user) {
-          setDashboard({
-            profile: null,
-            friendships: [],
-            profiles: [],
-            debtRequests: [],
-            settlements: []
-          });
-          return;
-        }
+      if (event !== "TOKEN_REFRESHED") {
+        setError(null);
+        setFeedback(null);
+      }
 
+      if (!nextSession?.user) {
+        setDashboard({
+          profile: null,
+          friendships: [],
+          profiles: [],
+          debtRequests: [],
+          settlements: []
+        });
+        return;
+      }
+
+      const shouldSyncProfile =
+        event === "SIGNED_IN" || event === "USER_UPDATED" || event === "INITIAL_SESSION";
+
+      void (async () => {
         try {
-          await ensureProfile(nextSession.user);
-          await loadDashboard(nextSession.user.id);
+          if (shouldSyncProfile) {
+            await ensureProfile(nextSession.user);
+          }
+
+          await loadDashboard(nextSession.user.id, { silent: true });
         } catch (cause: unknown) {
           setError(getErrorMessage(cause));
         }
-      });
+      })();
     });
 
     return () => {
@@ -1142,39 +1151,47 @@ export default function FnbApp() {
   return (
     <main className="shell app-shell">
       <section className="topbar">
-        <div className="identity-lockup">
-          <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
-          <div className="brand-copy">
-            <p className="eyebrow">F&B</p>
-            <h1 className="app-title">Friends and Benefits</h1>
-            <div className="profile-summary">
-              <Avatar profile={dashboard.profile} size="medium" />
-              <div className="profile-summary-copy">
-                <p className="top-copy">
-                  Welcome back, {dashboard.profile?.full_name ?? session.user.email}.
-                </p>
-                <p className="top-copy">
-                  Your username: @{dashboard.profile?.username ?? "not-set"}
-                </p>
-              </div>
+        <div className="topbar-main">
+          <div className="identity-lockup">
+            <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
+            <div className="brand-copy">
+              <p className="eyebrow">F&B</p>
+              <h1 className="app-title">Friends and Benefits</h1>
+            </div>
+          </div>
+
+          <div className="profile-banner">
+            <Avatar profile={dashboard.profile} size="medium" />
+            <div className="profile-banner-copy">
+              <span className="profile-label">Welcome back</span>
+              <strong>{dashboard.profile?.full_name ?? session.user.email}</strong>
+              <p>@{dashboard.profile?.username ?? "not-set"}</p>
             </div>
           </div>
         </div>
 
-        <div className="topbar-actions">
-          <button
-            className="ghost-button"
-            onClick={openProfileDialog}
-          >
-            Edit profile
-          </button>
-          <button className="ghost-button" onClick={refreshData} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-          <button className="ghost-button danger-ghost-button" onClick={signOut}>
-            Sign out
-          </button>
-        </div>
+        <aside className="topbar-rail">
+          <div className="topbar-actions">
+            <button
+              className="ghost-button"
+              onClick={openProfileDialog}
+            >
+              Edit profile
+            </button>
+            <button
+              className={`ghost-button refresh-button ${refreshing ? "button-is-loading" : ""}`}
+              onClick={refreshData}
+              disabled={refreshing}
+              aria-busy={refreshing}
+            >
+              <span className="button-status-dot" aria-hidden="true" />
+              Refresh
+            </button>
+            <button className="ghost-button danger-ghost-button" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </aside>
       </section>
 
       {(error || feedback) && (
@@ -1203,10 +1220,12 @@ export default function FnbApp() {
                 </p>
               </div>
               <button
-                className="ghost-button"
+                aria-label="Close profile dialog"
+                className="ghost-button dialog-close-button"
                 onClick={() => setIsProfileDialogOpen(false)}
+                type="button"
               >
-                Close
+                X
               </button>
             </div>
 
@@ -1498,7 +1517,7 @@ export default function FnbApp() {
                         {formatCurrency(request.amount_in_paise)} for {request.reason}
                       </p>
                       <small>
-                        Debt date {dateOnly.format(new Date(request.debt_date))} · Due{" "}
+                        Debt date {dateOnly.format(new Date(request.debt_date))} - Due{" "}
                         {formatDate(request.due_at)}
                       </small>
                     </div>
@@ -1614,10 +1633,12 @@ export default function FnbApp() {
                 </p>
               </div>
               <button
-                className="ghost-button"
+                aria-label="Close statement dialog"
+                className="ghost-button dialog-close-button"
                 onClick={() => setIsStatementDialogOpen(false)}
+                type="button"
               >
-                Close
+                X
               </button>
             </div>
 
