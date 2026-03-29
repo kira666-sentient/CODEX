@@ -1173,21 +1173,29 @@ export default function FnbApp() {
         <aside className="topbar-rail">
           <div className="topbar-actions">
             <button
-              className="ghost-button"
+              className="primary-button topbar-primary-button"
               onClick={openProfileDialog}
+              type="button"
             >
               Edit profile
             </button>
             <button
-              className={`ghost-button refresh-button ${refreshing ? "button-is-loading" : ""}`}
+              aria-busy={refreshing}
+              className={`ghost-button topbar-compact-button refresh-button ${
+                refreshing ? "button-is-loading" : ""
+              }`}
               onClick={refreshData}
               disabled={refreshing}
-              aria-busy={refreshing}
+              type="button"
             >
-              <span className="button-status-dot" aria-hidden="true" />
+              <RefreshIcon />
               Refresh
             </button>
-            <button className="ghost-button danger-ghost-button" onClick={signOut}>
+            <button
+              className="ghost-button danger-ghost-button topbar-compact-button"
+              onClick={signOut}
+              type="button"
+            >
               Sign out
             </button>
           </div>
@@ -1753,6 +1761,32 @@ function Avatar({
         <span>{initialsFor(profile)}</span>
       )}
     </div>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="button-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+    >
+      <path
+        d="M16.667 10a6.667 6.667 0 1 1-1.953-4.714"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M13.333 3.333h3.334v3.334"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.7"
+      />
+    </svg>
   );
 }
 

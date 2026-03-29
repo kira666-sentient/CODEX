@@ -147,8 +147,8 @@ h1 {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(188px, 212px);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 28px;
   padding: 28px 30px;
   background: rgba(255, 251, 245, 0.75);
@@ -164,8 +164,9 @@ h1 {
 
 .topbar-rail {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
+  padding-top: 4px;
 }
 
 .top-copy,
@@ -193,13 +194,10 @@ h1 {
 }
 
 .topbar-actions {
-  display: grid;
-  width: min(212px, 100%);
-  justify-items: stretch;
-}
-
-.topbar-actions > button {
-  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  row-gap: 12px;
 }
 
 .action-row {
@@ -278,22 +276,35 @@ h1 {
   background: rgba(255, 244, 242, 0.86);
 }
 
+.topbar-primary-button {
+  min-width: 164px;
+  padding-inline: 22px;
+}
+
+.topbar-compact-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  font-size: 0.95rem;
+}
+
 .refresh-button {
   justify-content: center;
+  min-width: 112px;
 }
 
-.button-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(216, 97, 43, 0.22);
-  transition: background 120ms ease, box-shadow 120ms ease;
+.button-icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
 }
 
-.button-is-loading .button-status-dot {
-  background: var(--accent);
-  box-shadow: 0 0 0 5px rgba(216, 97, 43, 0.14);
-  animation: refresh-pulse 1.1s ease-in-out infinite;
+.button-is-loading .button-icon {
+  animation: refresh-spin 0.9s linear infinite;
+}
+
+.refresh-button:disabled {
+  opacity: 0.78;
 }
 
 .primary-button:disabled,
@@ -846,14 +857,13 @@ code {
   }
 }
 
-@keyframes refresh-pulse {
-  0%,
-  100% {
-    transform: scale(0.92);
+@keyframes refresh-spin {
+  from {
+    transform: rotate(0deg);
   }
 
-  50% {
-    transform: scale(1);
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -867,12 +877,12 @@ code {
   }
 
   .topbar-rail {
-    justify-content: stretch;
+    padding-top: 0;
+    justify-content: flex-start;
   }
 
   .topbar-actions {
-    width: 100%;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    justify-content: flex-start;
   }
 }
 
@@ -915,10 +925,15 @@ code {
   }
 
   .topbar-actions {
-    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .profile-banner {
+    width: 100%;
+  }
+
+  .topbar-primary-button,
+  .topbar-compact-button {
     width: 100%;
   }
 
