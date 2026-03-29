@@ -347,6 +347,7 @@ h1 {
 .form-grid label {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .form-grid span {
@@ -365,6 +366,8 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 14px 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
@@ -430,6 +433,62 @@ textarea {
 
 .friend-card-side small {
   color: var(--muted);
+}
+
+.picker-shell {
+  position: relative;
+}
+
+.picker-trigger,
+.picker-option {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.picker-trigger {
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.picker-trigger-open {
+  box-shadow: 0 18px 40px rgba(31, 26, 20, 0.08);
+}
+
+.picker-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.picker-placeholder {
+  color: var(--muted);
+}
+
+.picker-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 249, 241, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
 }
 
 .pill,

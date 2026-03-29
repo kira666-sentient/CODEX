@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import {
   getAppOrigin,
@@ -1050,11 +1050,11 @@ export default function FnbApp() {
     !dashboard.profile?.username || dashboard.profile.username.length < 3;
 
   useEffect(() => {
-    if (profileNeedsSetup) {
+    if (!booting && session?.user && dashboard.profile && profileNeedsSetup) {
       setUsernameDraft(dashboard.profile?.username ?? "");
       setIsProfileDialogOpen(true);
     }
-  }, [dashboard.profile?.username, profileNeedsSetup]);
+  }, [booting, dashboard.profile, profileNeedsSetup, session?.user]);
 
   useEffect(() => {
     if (!isProfileDialogOpen) {
@@ -1379,22 +1379,17 @@ export default function FnbApp() {
           <div className="form-grid">
             <label>
               <span>Friend</span>
-              <select
-                value={debtForm.friendId}
-                onChange={(event) =>
+              <FriendPicker
+                friends={balances}
+                selectedId={debtForm.friendId}
+                onSelect={(friendId) =>
                   setDebtForm((current) => ({
                     ...current,
-                    friendId: event.target.value
+                    friendId
                   }))
                 }
-              >
-                <option value="">Choose a friend</option>
-                {balances.map((friend) => (
-                  <option key={friend.profile.id} value={friend.profile.id}>
-                    {readableProfile(friend.profile)}
-                  </option>
-                ))}
-              </select>
+                placeholder="Choose a friend"
+              />
             </label>
 
             <label>
@@ -1529,22 +1524,17 @@ export default function FnbApp() {
           <div className="form-grid compact-grid">
             <label>
               <span>Paid to</span>
-              <select
-                value={settlementForm.friendId}
-                onChange={(event) =>
+              <FriendPicker
+                friends={balances}
+                selectedId={settlementForm.friendId}
+                onSelect={(friendId) =>
                   setSettlementForm((current) => ({
                     ...current,
-                    friendId: event.target.value
+                    friendId
                   }))
                 }
-              >
-                <option value="">Choose a friend</option>
-                {balances.map((friend) => (
-                  <option key={friend.profile.id} value={friend.profile.id}>
-                    {readableProfile(friend.profile)}
-                  </option>
-                ))}
-              </select>
+                placeholder="Choose a friend"
+              />
             </label>
 
             <label>
@@ -1592,124 +1582,80 @@ export default function FnbApp() {
         </article>
       </section>
 
-      <section className="dashboard-grid lower-grid">
-        <article className="panel">
-          <div className="section-head">
-            <div>
-              <h2>Friend directory</h2>
-              <p className="muted">
-                Click a friend to open their statement. Positive means they owe you.
-              </p>
-            </div>
-          </div>
-
-          {balances.length === 0 ? (
-            <p className="empty-state">
-              Accept a friend invite or send one to start tracking balances.
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h2>Statement</h2>
+            <p className="muted">
+              Full record with{" "}
+              {selectedFriend
+                ? readableProfile(selectedFriend.profile)
+                : "your selected friend"}.
             </p>
-          ) : (
-            <div className="stack">
-              {balances.map((friend) => (
-                <button
-                  className={`friend-card ${
-                    selectedFriendId === friend.profile.id ? "friend-card-active" : ""
-                  }`}
-                  key={friend.friendshipId}
-                  onClick={() => setSelectedFriendId(friend.profile.id)}
-                >
-                  <PersonIdentity profile={friend.profile} />
-                  <div className="friend-card-side">
-                    <span
-                      className={`amount-badge ${
-                        friend.balanceInPaise > 0
-                          ? "positive"
-                          : friend.balanceInPaise < 0
-                            ? "negative"
-                            : ""
-                      }`}
-                    >
-                      {formatCurrency(friend.balanceInPaise)}
-                    </span>
-                    <small>@{friend.profile.username ?? "unknown"}</small>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </article>
-
-        <article className="panel">
-          <div className="section-head">
-            <div>
-              <h2>Statement</h2>
-              <p className="muted">
-                Full record with {selectedFriend ? readableProfile(selectedFriend.profile) : "your selected friend"}.
-              </p>
-            </div>
           </div>
+        </div>
 
-          {!selectedFriend ? (
-            <p className="empty-state">Choose a friend to see the statement.</p>
-          ) : (
-            <div className="statement-shell">
-              <div className="statement-header">
-                <PersonIdentity profile={selectedFriend.profile} />
-                <span
-                  className={`amount-badge ${
-                    selectedFriend.balanceInPaise > 0
-                      ? "positive"
-                      : selectedFriend.balanceInPaise < 0
-                        ? "negative"
-                        : ""
-                  }`}
-                >
-                  {formatCurrency(selectedFriend.balanceInPaise)}
-                </span>
-              </div>
-
-              {friendStatement.length === 0 ? (
-                <p className="empty-state">No records yet with this friend.</p>
-              ) : (
-                <div className="statement-table-wrap">
-                  <table className="statement-table">
-                    <thead>
-                      <tr>
-                        <th>When</th>
-                        <th>Entry</th>
-                        <th>Status</th>
-                        <th>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {friendStatement.map((entry) => (
-                        <tr key={`${entry.kind}-${entry.id}`}>
-                          <td>{dateTime.format(new Date(entry.createdAt))}</td>
-                          <td>
-                            <strong>{entry.title}</strong>
-                            <p>{entry.detail}</p>
-                          </td>
-                          <td>
-                            <span className={`pill status-${entry.status}`}>
-                              {entry.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="statement-amounts">
-                              <strong>{formatCurrency(entry.amountInPaise)}</strong>
-                              <small>
-                                Balance impact {formatCurrency(entry.balanceDeltaInPaise)}
-                              </small>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+        {!selectedFriend ? (
+          <p className="empty-state">Choose a friend from the Friends panel to see the statement.</p>
+        ) : (
+          <div className="statement-shell">
+            <div className="statement-header">
+              <PersonIdentity profile={selectedFriend.profile} />
+              <span
+                className={`amount-badge ${
+                  selectedFriend.balanceInPaise > 0
+                    ? "positive"
+                    : selectedFriend.balanceInPaise < 0
+                      ? "negative"
+                      : ""
+                }`}
+              >
+                {formatCurrency(selectedFriend.balanceInPaise)}
+              </span>
             </div>
-          )}
-        </article>
+
+            {friendStatement.length === 0 ? (
+              <p className="empty-state">No records yet with this friend.</p>
+            ) : (
+              <div className="statement-table-wrap">
+                <table className="statement-table">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Entry</th>
+                      <th>Status</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {friendStatement.map((entry) => (
+                      <tr key={`${entry.kind}-${entry.id}`}>
+                        <td>{dateTime.format(new Date(entry.createdAt))}</td>
+                        <td>
+                          <strong>{entry.title}</strong>
+                          <p>{entry.detail}</p>
+                        </td>
+                        <td>
+                          <span className={`pill status-${entry.status}`}>
+                            {entry.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="statement-amounts">
+                            <strong>{formatCurrency(entry.amountInPaise)}</strong>
+                            <small>
+                              Balance impact {formatCurrency(entry.balanceDeltaInPaise)}
+                            </small>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="panel">
@@ -1773,6 +1719,104 @@ function PersonIdentity({ profile }: { profile?: Profile | null }) {
         <strong>{readableProfile(profile)}</strong>
         <p>@{profile?.username ?? "unknown"}</p>
       </div>
+    </div>
+  );
+}
+
+function FriendPicker({
+  friends,
+  selectedId,
+  onSelect,
+  placeholder
+}: {
+  friends: FriendSummary[];
+  selectedId: string;
+  onSelect: (friendId: string) => void;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedFriend =
+    friends.find((friend) => friend.profile.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="picker-shell" ref={wrapperRef}>
+      <button
+        className={`picker-trigger ${open ? "picker-trigger-open" : ""}`}
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        {selectedFriend ? (
+          <div className="picker-value">
+            <PersonIdentity profile={selectedFriend.profile} />
+            <span
+              className={`amount-badge ${
+                selectedFriend.balanceInPaise > 0
+                  ? "positive"
+                  : selectedFriend.balanceInPaise < 0
+                    ? "negative"
+                    : ""
+              }`}
+            >
+              {formatCurrency(selectedFriend.balanceInPaise)}
+            </span>
+          </div>
+        ) : (
+          <span className="picker-placeholder">{placeholder}</span>
+        )}
+      </button>
+
+      {open && (
+        <div className="picker-menu">
+          {friends.length === 0 ? (
+            <p className="empty-state">No friends available yet.</p>
+          ) : (
+            friends.map((friend) => (
+              <button
+                className="picker-option"
+                key={friend.friendshipId}
+                onClick={() => {
+                  onSelect(friend.profile.id);
+                  setOpen(false);
+                }}
+                type="button"
+              >
+                <PersonIdentity profile={friend.profile} />
+                <span
+                  className={`amount-badge ${
+                    friend.balanceInPaise > 0
+                      ? "positive"
+                      : friend.balanceInPaise < 0
+                        ? "negative"
+                        : ""
+                  }`}
+                >
+                  {formatCurrency(friend.balanceInPaise)}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
