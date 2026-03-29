@@ -404,6 +404,7 @@ h1 {
 .profile-banner {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
   width: fit-content;
   max-width: 100%;
@@ -416,6 +417,9 @@ h1 {
 
 .profile-banner-copy {
   min-width: 0;
+  display: grid;
+  justify-items: center;
+  text-align: center;
 }
 
 .profile-banner-copy strong {
