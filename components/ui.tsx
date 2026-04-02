@@ -15,10 +15,17 @@ export function Avatar({
   profile?: Profile | null;
   size?: "small" | "medium" | "large";
 }) {
+  const avatarUrl = profile?.avatar_url?.trim() || null;
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatarUrl]);
+
   return (
     <div className={`avatar avatar-${size}`}>
-      {profile?.avatar_url ? (
-        <img src={profile.avatar_url} alt={readableProfile(profile)} />
+      {avatarUrl && !imageFailed ? (
+        <img src={avatarUrl} alt={readableProfile(profile)} onError={() => setImageFailed(true)} />
       ) : (
         <span>{initialsFor(profile)}</span>
       )}
@@ -51,6 +58,14 @@ export function RefreshIcon() {
   );
 }
 
+export function ChevronDownIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 20 20" fill="none">
+      <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 /* ── FriendPicker ────────────────────────────────────── */
 
 export function FriendPicker({
@@ -72,36 +87,53 @@ export function FriendPicker({
 
   useEffect(() => {
     if (!open) return;
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
     document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [open]);
 
   return (
-    <div className="picker-shell" ref={wrapperRef}>
+    <div className={`picker-shell ${open ? "picker-shell-open" : ""}`} ref={wrapperRef}>
       <button
         className={`picker-trigger ${open ? "picker-trigger-open" : ""}`}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         onClick={() => setOpen((c) => !c)}
         type="button"
       >
         {selectedFriend ? (
           <div className="picker-value">
             <PersonIdentity profile={selectedFriend.profile} />
-            <span className="picker-caret">{open ? "Hide" : "Select"}</span>
+            <span className={`picker-caret ${open ? "picker-caret-open" : ""}`}>
+              <ChevronDownIcon className="picker-caret-icon" />
+            </span>
           </div>
         ) : (
           <div className="picker-value">
             <span className="picker-placeholder">{placeholder}</span>
-            <span className="picker-caret">Select</span>
+            <span className={`picker-caret ${open ? "picker-caret-open" : ""}`}>
+              <ChevronDownIcon className="picker-caret-icon" />
+            </span>
           </div>
         )}
       </button>
       {open && (
-        <div className="picker-menu">
+        <div className="picker-menu" role="listbox">
           {friends.length === 0 ? (
             <p className="empty-state">No friends available yet.</p>
           ) : (
@@ -110,6 +142,8 @@ export function FriendPicker({
                 className="picker-option"
                 key={friend.friendshipId}
                 onClick={() => { onSelect(friend.profile.id); setOpen(false); }}
+                role="option"
+                aria-selected={friend.profile.id === selectedId}
                 type="button"
               >
                 <PersonIdentity profile={friend.profile} />

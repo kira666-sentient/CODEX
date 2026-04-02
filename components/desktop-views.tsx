@@ -1,15 +1,44 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Profile, Friendship, SharedItem } from "@/lib/app-types";
 import type { FriendSummary, ActivityItem } from "@/lib/types";
-import { formatCurrency, formatDateTime, readableProfile } from "@/lib/helpers";
+import { formatCurrency, formatDateTime } from "@/lib/helpers";
 import { Avatar, PersonIdentity, RefreshIcon } from "./ui";
 
-/* ═══════════════════════════════════════════════════════
-   Desktop Topbar (contains both mobile & desktop elements)
-   ═══════════════════════════════════════════════════════ */
+export type WeatherSceneTone =
+  | "clear-day"
+  | "clear-night"
+  | "cloudy-day"
+  | "cloudy-night"
+  | "rain-day"
+  | "rain-night"
+  | "storm";
+
+export type DesktopWeatherData = {
+  locationLabel: string;
+  sourceLabel: string;
+  conditionLabel: string;
+  temperatureC: number | null;
+  apparentTemperatureC: number | null;
+  humidity: number | null;
+  windKph: number | null;
+  highC: number | null;
+  lowC: number | null;
+  sunrise: string | null;
+  sunset: string | null;
+  updatedAtLabel: string;
+  isDay: boolean;
+  tone: WeatherSceneTone;
+};
+
+export type DesktopNavItem = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  hint: string;
+};
 
 export interface TopbarProps {
   onOpenSidebar: () => void;
@@ -18,34 +47,23 @@ export interface TopbarProps {
 
 export function Topbar({ onOpenSidebar, onOpenAbout }: TopbarProps) {
   return (
-    <section className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      {/* Mobile: Logo = sidebar trigger */}
-      <button className="mobile-only" onClick={onOpenSidebar} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-        <img className="brand-logo" src="/fnb-logo.svg" alt="F&B" style={{ width: '44px', height: '44px', borderRadius: '14px' }} />
+    <section className="topbar app-topbar">
+      <button className="mobile-only mobile-logo-button" onClick={onOpenSidebar} type="button">
+        <img className="brand-logo mobile-brand-logo" src="/fnb-logo.svg" alt="F&B" />
       </button>
-
-      {/* PC: Full identity lockup */}
       <div className="topbar-main desktop-only">
-        <div className="identity-lockup" style={{ gap: '14px' }}>
+        <div className="identity-lockup topbar-lockup">
           <img className="brand-logo" src="/fnb-logo.svg" alt="F&B logo" />
           <div className="brand-copy">
-            <h1 className="app-title" style={{ margin: 0, letterSpacing: '-0.02em' }}>Friends &amp; Benefits</h1>
+            <h1 className="app-title topbar-title">Friends &amp; Benefits</h1>
           </div>
         </div>
       </div>
-
-      {/* Mobile: Centered title */}
-      <h1 className="app-title mobile-only" style={{ fontSize: '1.1rem', margin: 0 }}>Friends &amp; Benefits</h1>
-
-      {/* Help/About icon (visible on all breakpoints) */}
-      <button className="help-icon-button" onClick={onOpenAbout} title="How to use &amp; About Me" type="button">❓</button>
+      <h1 className="app-title mobile-only mobile-topbar-title">Friends &amp; Benefits</h1>
+      <button className="help-icon-button" onClick={onOpenAbout} title="How to use and About" type="button">?</button>
     </section>
   );
 }
-
-/* ═══════════════════════════════════════════════════════
-   Desktop Profile Strip
-   ═══════════════════════════════════════════════════════ */
 
 export interface ProfileStripProps {
   profile: Profile | null;
@@ -80,39 +98,52 @@ export function ProfileStrip(props: ProfileStripProps) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Stat Cards Row
-   ═══════════════════════════════════════════════════════ */
-
 export interface StatGridProps {
   friendCount: number;
   totalOwedToYou: number;
   totalYouOwe: number;
   pendingCount: number;
+  incomingInvites: Friendship[];
+  outgoingInvites: Friendship[];
+  onOpenFriends: () => void;
   onOpenApprovals: () => void;
 }
 
 export function StatGrid(props: StatGridProps) {
-  const { friendCount, totalOwedToYou, totalYouOwe, pendingCount, onOpenApprovals } = props;
+  const { friendCount, totalOwedToYou, totalYouOwe, pendingCount, incomingInvites, outgoingInvites, onOpenFriends, onOpenApprovals } = props;
+  const totalInviteCount = incomingInvites.length + outgoingInvites.length;
+  const hasInviteSignal = totalInviteCount > 0;
+  const hasPendingSignal = pendingCount > 0;
 
   return (
     <section className="stat-grid desktop-only">
-      <article className="stat-card"><span>Total friends</span><strong>{friendCount}</strong></article>
-      <article className="stat-card success"><span>They owe you</span><strong>{formatCurrency(totalOwedToYou)}</strong></article>
-      <article className="stat-card warning"><span>You owe</span><strong>{formatCurrency(totalYouOwe)}</strong></article>
-      <article className="stat-card" onClick={onOpenApprovals} style={{ cursor: 'pointer' }}>
-        <span>Pending approvals</span><strong>{pendingCount}</strong>
+      <button className={`stat-card stat-card-action stat-card-button ${hasInviteSignal ? "stat-card-signal" : ""}`} onClick={onOpenFriends} type="button">
+        <div className="stat-card-copy">
+          <span className="stat-card-label">Total friends</span>
+          <strong className="stat-card-value">{friendCount}</strong>
+        </div>
+        <div className="stat-card-side">
+          {hasInviteSignal ? (
+            <span className="stat-card-badge">
+              {totalInviteCount} invite{totalInviteCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          <span className="stat-card-hint">View invites</span>
+        </div>
+      </button>
+
+      <article className="stat-card success"><span className="stat-card-label">They owe you</span><strong className="stat-card-value">{formatCurrency(totalOwedToYou)}</strong></article>
+
+      <article className="stat-card warning"><span className="stat-card-label">You owe</span><strong className="stat-card-value">{formatCurrency(totalYouOwe)}</strong></article>
+
+      <article className={`stat-card stat-card-action ${hasPendingSignal ? "stat-card-signal" : ""}`} onClick={onOpenApprovals}>
+        <span className="stat-card-label">Pending approvals</span><strong className="stat-card-value">{pendingCount}</strong>
       </article>
     </section>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Desktop Dashboard Grid (Network + Money + Items)
-   ═══════════════════════════════════════════════════════ */
-
 export interface DashboardGridProps {
-  /* Network column */
   balances: FriendSummary[];
   selectedFriendId: string;
   isInviteFormOpen: boolean;
@@ -121,12 +152,7 @@ export interface DashboardGridProps {
   setInviteUsername: (v: string) => void;
   onSendInvite: () => void;
   mutating: boolean;
-  incomingInvites: Friendship[];
-  outgoingInvites: Friendship[];
-  profilesById: Map<string, Profile>;
   onViewStatement: (friendId: string) => void;
-  onRespondInvite: (id: string, accept: boolean) => void;
-  /* Money & Items */
   onOpenDebt: () => void;
   onOpenSettlement: () => void;
   onOpenItemsDialog: () => void;
@@ -135,41 +161,67 @@ export interface DashboardGridProps {
   userId: string;
   onCancelItem: (id: string) => void;
   onRequestReturn: (id: string, e?: React.MouseEvent) => void;
+  onOpenApprovals: () => void;
+  onOpenFullItems: () => void;
+  networkSectionRef?: React.RefObject<HTMLElement | null>;
+  moneySectionRef?: React.RefObject<HTMLElement | null>;
+  itemsSectionRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function DashboardGrid(props: DashboardGridProps) {
-  const { balances, selectedFriendId, isInviteFormOpen, setIsInviteFormOpen, inviteUsername, setInviteUsername, onSendInvite, mutating, incomingInvites, outgoingInvites, profilesById, onViewStatement, onRespondInvite, onOpenDebt, onOpenSettlement, onOpenItemsDialog, sharedItems, profiles, userId, onCancelItem, onRequestReturn } = props;
+  const { balances, selectedFriendId, isInviteFormOpen, setIsInviteFormOpen, inviteUsername, setInviteUsername, onSendInvite, mutating, onViewStatement, onOpenDebt, onOpenSettlement, onOpenItemsDialog, sharedItems, profiles, userId, onCancelItem, onRequestReturn, onOpenApprovals, onOpenFullItems, networkSectionRef, moneySectionRef, itemsSectionRef } = props;
+  const rightColumnRef = useRef<HTMLDivElement | null>(null);
+  const [matchedColumnHeight, setMatchedColumnHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const column = rightColumnRef.current;
+    if (!column) return;
+
+    const updateHeight = () => {
+      setMatchedColumnHeight(Math.ceil(column.getBoundingClientRect().height));
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver(() => updateHeight());
+    observer.observe(column);
+    window.addEventListener("resize", updateHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
 
   return (
     <section className="dashboard-grid desktop-only">
-      {/* ── Column 1: Network ──────────────────────────── */}
-      <div className="dashboard-column">
-        <article className="panel panel-network">
+      <div className="dashboard-column" style={matchedColumnHeight ? { height: `${matchedColumnHeight}px` } : undefined}>
+        <article className="panel panel-network" ref={networkSectionRef}>
           <div className="section-head">
             <div>
               <h2>Your network</h2>
-              <p className="muted">Friends, incoming invites, and outgoing requests stay organized here.</p>
+              <p className="muted">Friends and current balances stay organized here.</p>
             </div>
           </div>
-          <div className="panel-scroll panel-scroll-network">
-            <div className="section-stack">
-              <section className="subpanel">
-                <div className="subpanel-head">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3>Your friends</h3>
-                    <button className="ghost-button" onClick={() => setIsInviteFormOpen(!isInviteFormOpen)} style={{ padding: '4px', minHeight: '32px', minWidth: '32px', fontSize: '1.2rem' }} title="Invite a new friend">
-                      {isInviteFormOpen ? "−" : "+"}
-                    </button>
-                  </div>
-                  <span className="count-chip">{balances.length}</span>
-                </div>
+          <section className="subpanel network-friends-subpanel">
+            <div className="subpanel-head network-friends-toolbar">
+              <div className="subpanel-head-main">
+                <h3>Your friends</h3>
+                <button className="ghost-button subpanel-icon-button" onClick={() => setIsInviteFormOpen(!isInviteFormOpen)} title="Invite a new friend" type="button">{isInviteFormOpen ? "-" : "+"}</button>
+              </div>
+              <span className="count-chip">{balances.length}</span>
+            </div>
+          </section>
 
+          <div className="panel-scroll panel-scroll-network">
+            <div className="section-stack network-scroll-stack">
+              <section className="subpanel network-friends-list">
                 {isInviteFormOpen && (
-                  <div className="subpanel-invite-inline" style={{ padding: '0 0 16px', borderBottom: '1px solid var(--line)', marginBottom: '16px' }}>
-                    <span className="profile-label" style={{ marginBottom: '8px' }}>Invite by username:</span>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input aria-label="Invite by username" value={inviteUsername} onChange={(e) => setInviteUsername(e.target.value)} placeholder="friend_username" style={{ minHeight: '42px', padding: '8px 12px', flex: 1, minWidth: 0 }} />
-                      <button className="primary-button" onClick={onSendInvite} disabled={mutating} style={{ minHeight: '42px', whiteSpace: 'nowrap', padding: '0 20px' }}>Send</button>
+                  <div className="subpanel-invite-inline network-invite-inline">
+                    <span className="profile-label subpanel-label">Invite by username</span>
+                    <div className="inline-form-row">
+                      <input aria-label="Invite by username" value={inviteUsername} onChange={(e) => setInviteUsername(e.target.value)} placeholder="friend_username" />
+                      <button className="primary-button inline-form-submit" onClick={onSendInvite} disabled={mutating} type="button">Send</button>
                     </div>
                   </div>
                 )}
@@ -179,7 +231,7 @@ export function DashboardGrid(props: DashboardGridProps) {
                 ) : (
                   <div className="stack mini-stack">
                     {balances.map((friend) => (
-                      <button className={`friend-card ${selectedFriendId === friend.profile.id ? "friend-card-active" : ""}`} key={friend.friendshipId} onClick={() => onViewStatement(friend.profile.id)}>
+                      <button className={`friend-card ${selectedFriendId === friend.profile.id ? "friend-card-active" : ""}`} key={friend.friendshipId} onClick={() => onViewStatement(friend.profile.id)} type="button">
                         <PersonIdentity profile={friend.profile} />
                         <div className="friend-card-side">
                           <span className={`amount-badge ${friend.balanceInPaise > 0 ? "positive" : friend.balanceInPaise < 0 ? "negative" : ""}`}>{formatCurrency(friend.balanceInPaise)}</span>
@@ -190,58 +242,27 @@ export function DashboardGrid(props: DashboardGridProps) {
                   </div>
                 )}
               </section>
-
-              <section className="subpanel">
-                <div className="subpanel-head"><h3>Incoming invites</h3><span className="count-chip">{incomingInvites.length}</span></div>
-                {incomingInvites.length === 0 ? (
-                  <p className="empty-state">No incoming invites right now.</p>
-                ) : (
-                  <div className="stack mini-stack">
-                    <div className="list-card" key={incomingInvites[0].id} style={{ borderStyle: 'solid', borderWidth: '2px' }}>
-                      <PersonIdentity profile={profilesById.get(incomingInvites[0].requester_id)} />
-                      <div className="row-actions">
-                        <button className="primary-button" onClick={() => onRespondInvite(incomingInvites[0].id, true)} disabled={mutating} style={{ padding: '8px 16px' }}>Accept</button>
-                      </div>
-                    </div>
-                    {incomingInvites.slice(1).map((invite) => (
-                      <div className="list-card dense" key={invite.id} style={{ opacity: 0.8, background: 'rgba(255,255,255,0.3)' }}>
-                        <PersonIdentity profile={profilesById.get(invite.requester_id)} />
-                        <div className="row-actions">
-                          <button className="primary-button" onClick={() => onRespondInvite(invite.id, true)} disabled={mutating} style={{ padding: "4px 10px", minHeight: "32px", fontSize: "0.8rem" }} title="Accept">Accept</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="subpanel">
-                <div className="subpanel-head"><h3>Outgoing invites</h3><span className="count-chip">{outgoingInvites.length}</span></div>
-                {outgoingInvites.length === 0 ? (
-                  <p className="empty-state">No pending invites sent.</p>
-                ) : (
-                  <div className="stack mini-stack">
-                    <div className="list-card" key={outgoingInvites[0].id}>
-                      <PersonIdentity profile={profilesById.get(outgoingInvites[0].addressee_id)} />
-                      <span className="pill">Waiting</span>
-                    </div>
-                    {outgoingInvites.slice(1).map((invite) => (
-                      <div className="list-card dense" key={invite.id} style={{ opacity: 0.8, background: 'rgba(255,255,255,0.3)' }}>
-                        <PersonIdentity profile={profilesById.get(invite.addressee_id)} />
-                        <span className="pill" style={{ fontSize: "0.7rem" }}>Sent</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
+              <div className="network-doodle-card" aria-hidden="true">
+                <div className="network-doodle-figure">
+                  <span className="network-doodle-head" />
+                  <span className="network-doodle-body" />
+                  <span className="network-doodle-arm network-doodle-arm-left" />
+                  <span className="network-doodle-arm network-doodle-arm-right" />
+                  <span className="network-doodle-leg network-doodle-leg-left" />
+                  <span className="network-doodle-leg network-doodle-leg-right" />
+                </div>
+                <div className="network-doodle-note">
+                  <span className="profile-label">Quick tip</span>
+                  <p>Tap any friend card to open the full statement and jump into a debt or settlement flow.</p>
+                </div>
+              </div>
             </div>
           </div>
         </article>
       </div>
 
-      {/* ── Column 2: Money + Items ────────────────────── */}
-      <div className="dashboard-column">
-        <article className="panel panel-money">
+      <div className="dashboard-column" ref={rightColumnRef}>
+        <article className="panel panel-money" ref={moneySectionRef}>
           <div className="section-head">
             <div>
               <h2>Money actions</h2>
@@ -262,46 +283,50 @@ export function DashboardGrid(props: DashboardGridProps) {
           </div>
         </article>
 
-        <article className="panel panel-items">
-          <div className="section-head" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '16px', marginBottom: '16px' }}>
+        <article className="panel panel-items" ref={itemsSectionRef}>
+          <div className="section-head panel-head-bordered">
             <div>
-              <h2>Shared Items Tracker</h2>
+              <h2>Shared items tracker</h2>
               <p className="muted">Keep track of things you lent or borrowed.</p>
             </div>
-            <button className="primary-button" onClick={onOpenItemsDialog} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>+ Log Item</button>
+            <button className="primary-button compact-action-button" onClick={onOpenItemsDialog} type="button">+ Log Item</button>
           </div>
-          <div className="panel-scroll" style={{ maxHeight: 'none', height: 'auto' }}>
+          <div className="panel-scroll">
             <div className="section-stack">
               {sharedItems.length === 0 ? (
                 <p className="empty-state">No shared items right now.</p>
               ) : (
                 <div className="stack mini-stack">
                   {sharedItems.map((item) => (
-                    <div className="list-card dense" key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="list-card dense item-row-card" key={item.id}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="item-row-header">
                           <strong>{item.item_name}</strong>
-                          <span className={`pill status-${item.status}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>{item.status}</span>
+                          <span className={`pill pill-tiny status-${item.status}`}>{item.status}</span>
                         </div>
-                        <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
-                          <span className="profile-label" style={{ fontSize: '0.65rem', marginRight: '6px' }}>{item.type.toUpperCase()}</span>
-                          {item.type === 'gave' ? 'to' : 'from'} {profiles.find((p) => p.id === item.friend_id)?.full_name || 'friend'}
+                        <p className="muted item-row-copy">
+                          <span className="profile-label profile-label-inline">{item.type.toUpperCase()}</span>
+                          {item.type === "gave" ? "to" : "from"} {profiles.find((p) => p.id === item.friend_id)?.full_name || "friend"}
                         </p>
                       </div>
                       <div className="row-actions">
-                        {item.status === 'pending' && item.owner_id === userId && (
-                          <button className="ghost-button danger-ghost-button" onClick={() => onCancelItem(item.id)} style={{ padding: '6px 12px' }}>Cancel</button>
+                        {item.status === "pending" && item.owner_id === userId && (
+                          <button className="ghost-button danger-ghost-button compact-action-button" onClick={() => onCancelItem(item.id)} type="button">Cancel</button>
                         )}
-                        {item.status === 'active' && (
-                          ((item.type === 'gave' && item.friend_id === userId) ||
-                           (item.type === 'borrowed' && item.owner_id === userId)) ? (
-                            <button className="ghost-button" onClick={(e) => onRequestReturn(item.id, e)} style={{ padding: '6px 12px' }}>Mark Returned</button>
+                        {item.status === "active" && (
+                          ((item.type === "gave" && item.friend_id === userId) || (item.type === "borrowed" && item.owner_id === userId)) ? (
+                            <button className="ghost-button compact-action-button" onClick={(e) => onRequestReturn(item.id, e)} type="button">Mark Returned</button>
                           ) : (
-                            <span className="muted" style={{ fontSize: '0.8rem' }}>In use</span>
+                            <span className="muted caption-text">In use</span>
                           )
                         )}
-                        {item.status === 'pending_return' && (
-                          <span className="pill status-pending" style={{ fontSize: '0.7rem' }}>Returning...</span>
+                        {item.status === "pending_return" && (
+                          <span className="pill pill-small status-pending">Returning...</span>
+                        )}
+                        {((item.status === "pending" && item.friend_id === userId) || (item.status === "pending_return" && item.owner_id === userId)) && (
+                          <div className="approval-redirect">
+                            <button className="ghost-button review-link-button" onClick={onOpenApprovals} type="button">Review in Approvals -&gt;</button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -310,19 +335,20 @@ export function DashboardGrid(props: DashboardGridProps) {
               )}
             </div>
           </div>
+          <div className="panel-footer-link">
+            <button className="ghost-button panel-link-button" onClick={onOpenFullItems} type="button">View All Shared Items -&gt;</button>
+          </div>
         </article>
       </div>
     </section>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Activity Panel (full-width below dashboard grid)
-   ═══════════════════════════════════════════════════════ */
+export function ActivityPanel({ recentActivity, onOpenFullActivity, sectionRef }: { recentActivity: ActivityItem[]; onOpenFullActivity: () => void; sectionRef?: React.RefObject<HTMLElement | null> }) {
+  const previewItems = recentActivity.slice(0, 4);
 
-export function ActivityPanel({ recentActivity }: { recentActivity: ActivityItem[] }) {
   return (
-    <section className="panel activity-panel desktop-only">
+    <section className="panel activity-panel desktop-only" ref={sectionRef}>
       <div className="section-head">
         <div>
           <h2>Recent activity</h2>
@@ -332,10 +358,10 @@ export function ActivityPanel({ recentActivity }: { recentActivity: ActivityItem
       {recentActivity.length === 0 ? (
         <p className="empty-state">No activity yet.</p>
       ) : (
-        <div className="panel-scroll panel-scroll-activity" style={{ maxHeight: 'none', height: 'auto', overflow: 'visible' }}>
-          <div className="stack mini-stack" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {recentActivity.map((item) => (
-              <div className="list-card dense" key={`${item.kind}-${item.id}`}>
+        <div className="panel-scroll panel-scroll-activity">
+          <div className="stack mini-stack activity-grid">
+            {previewItems.map((item) => (
+              <button className="list-card dense activity-preview-card" key={`${item.kind}-${item.id}`} onClick={onOpenFullActivity} type="button">
                 <div className="person-block">
                   <PersonIdentity profile={item.profile} />
                   <strong>{item.label}</strong>
@@ -346,11 +372,139 @@ export function ActivityPanel({ recentActivity }: { recentActivity: ActivityItem
                   <span className="amount-badge neutral">{formatCurrency(item.amountInPaise)}</span>
                   <span className={`pill status-${item.status}`}>{item.status}</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       )}
+      {recentActivity.length > 0 ? (
+        <div className="panel-footer-link">
+          <button className="ghost-button panel-link-button" onClick={onOpenFullActivity} type="button">Open Full Recent Activity -&gt;</button>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function formatWeatherMetric(value: number | null, suffix: string) {
+  return value === null ? "--" : `${Math.round(value)}${suffix}`;
+}
+
+export function DashboardAmbientBackdrop({ tone }: { tone: WeatherSceneTone }) {
+  const isNight = tone.includes("night");
+  const isRain = tone.includes("rain") || tone === "storm";
+
+  return (
+    <div className={`dashboard-ambient dashboard-ambient-${tone} desktop-only`} aria-hidden="true">
+      <div className="dashboard-ambient-glow dashboard-ambient-glow-a" />
+      <div className="dashboard-ambient-glow dashboard-ambient-glow-b" />
+      <div className="dashboard-ambient-halo" />
+      <div className={`dashboard-ambient-orb ${isNight ? "dashboard-ambient-moon" : "dashboard-ambient-sun"}`} />
+      <div className="dashboard-ambient-cloud dashboard-ambient-cloud-a" />
+      <div className="dashboard-ambient-cloud dashboard-ambient-cloud-b" />
+      <div className="dashboard-ambient-cloud dashboard-ambient-cloud-c" />
+      {isNight ? (
+        <div className="dashboard-ambient-stars">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <span className={`dashboard-star dashboard-star-${(index % 5) + 1}`} key={index} />
+          ))}
+        </div>
+      ) : null}
+      {isRain ? (
+        <div className="dashboard-ambient-rain">
+          {Array.from({ length: tone === "storm" ? 18 : 12 }).map((_, index) => (
+            <span className={`dashboard-rain-drop dashboard-rain-drop-${(index % 6) + 1}`} key={index} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function DesktopWeatherRail({ weather }: { weather: DesktopWeatherData }) {
+  return (
+    <aside className="dashboard-side-rail weather-rail desktop-only" data-tone={weather.tone}>
+      <div className="dashboard-side-card weather-side-card">
+        <div className="weather-side-head">
+          <span className="profile-label">Weather mood</span>
+          <small>{weather.sourceLabel}</small>
+        </div>
+        <div className="weather-temp-line">
+          <strong>{weather.temperatureC === null ? "--" : `${Math.round(weather.temperatureC)}°`}</strong>
+          <span>{weather.conditionLabel}</span>
+        </div>
+        <p className="weather-location">{weather.locationLabel}</p>
+        <div className="weather-summary-pill">
+          <span>Feels like</span>
+          <strong>{formatWeatherMetric(weather.apparentTemperatureC, "°")}</strong>
+        </div>
+        <div className="weather-detail-grid">
+          <div className="weather-detail-row">
+            <span>Humidity</span>
+            <strong>{formatWeatherMetric(weather.humidity, "%")}</strong>
+          </div>
+          <div className="weather-detail-row">
+            <span>Wind</span>
+            <strong>{formatWeatherMetric(weather.windKph, " km/h")}</strong>
+          </div>
+          <div className="weather-detail-row">
+            <span>High</span>
+            <strong>{formatWeatherMetric(weather.highC, "°")}</strong>
+          </div>
+          <div className="weather-detail-row">
+            <span>Low</span>
+            <strong>{formatWeatherMetric(weather.lowC, "°")}</strong>
+          </div>
+          <div className="weather-detail-row">
+            <span>Sunrise</span>
+            <strong>{weather.sunrise ?? "--"}</strong>
+          </div>
+          <div className="weather-detail-row">
+            <span>Sunset</span>
+            <strong>{weather.sunset ?? "--"}</strong>
+          </div>
+        </div>
+        <div className="weather-side-foot">
+          <small>Updated {weather.updatedAtLabel}</small>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+export function MagicSectionNav({
+  items,
+  activeId,
+  onNavigate
+}: {
+  items: DesktopNavItem[];
+  activeId: string;
+  onNavigate: (id: string) => void;
+}) {
+  return (
+    <aside className="dashboard-side-rail magic-nav-rail desktop-only">
+      <nav className="dashboard-side-card magic-nav-card" aria-label="Dashboard sections">
+        <div className="magic-nav-head">
+          <span className="profile-label">Quick glide</span>
+          <p className="muted">Jump across the dashboard.</p>
+        </div>
+        <div className="magic-nav-list">
+          {items.map((item) => (
+            <button
+              className={`magic-nav-button ${activeId === item.id ? "magic-nav-button-active" : ""}`}
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              type="button"
+            >
+              <span className="magic-nav-chip">{item.shortLabel}</span>
+              <span className="magic-nav-copy">
+                <strong>{item.label}</strong>
+                <small>{item.hint}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </aside>
   );
 }

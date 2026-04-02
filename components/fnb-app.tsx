@@ -7,18 +7,117 @@ import type { Session, User } from "@supabase/supabase-js";
 import { getAppOrigin, getSupabaseBrowserClient, hasSupabaseEnv } from "@/lib/supabase";
 import type { DebtRequest, Friendship, Profile, Settlement, SharedItem } from "@/lib/app-types";
 import type { FriendSummary, ActivityItem, StatementEntry, DashboardData, DebtFormState, SettlementFormState, ItemFormState } from "@/lib/types";
-import { formatCurrency, formatUsernameCandidate, makeStarterUsername, readableProfile, getErrorMessage } from "@/lib/helpers";
+import { formatUsernameCandidate, makeStarterUsername, readableProfile, getErrorMessage } from "@/lib/helpers";
 
 import FnbLanding from "./fnb-landing";
-import { ProfileDialog, DebtDialog, SettlementDialog, StatementDialog, ApprovalsDialog, AboutDialog, ItemsDialog } from "./dialogs";
+import { ProfileDialog, DebtDialog, SettlementDialog, StatementDialog, ApprovalsDialog, AboutDialog, ItemsDialog, FullItemsDialog, RecentActivityDialog, FriendsOverviewDialog } from "./dialogs";
 import { MobileSidebar, MobileHome, MobileNetworkPage, MobileApprovalsPage, MobileMoneyPage, MobileItemsPage, MobileActivityPage } from "./mobile-views";
-import { Topbar, ProfileStrip, StatGrid, DashboardGrid, ActivityPanel } from "./desktop-views";
+import { Topbar, ProfileStrip, StatGrid, DashboardGrid, ActivityPanel, DashboardAmbientBackdrop, DesktopWeatherRail, MagicSectionNav } from "./desktop-views";
+import type { DesktopWeatherData, DesktopNavItem, WeatherSceneTone } from "./desktop-views";
+
+const WEATHER_FALLBACK = {
+  latitude: 22.5726,
+  longitude: 88.3639,
+  label: "Kolkata"
+};
+
+type OpenMeteoForecast = {
+  current: {
+    time: string;
+    temperature_2m: number;
+    apparent_temperature: number;
+    relative_humidity_2m: number;
+    weather_code: number;
+    wind_speed_10m: number;
+    is_day: number;
+  };
+  daily: {
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    sunrise: string[];
+    sunset: string[];
+  };
+};
+
+function getWeatherTone(weatherCode: number, isDay: boolean): WeatherSceneTone {
+  if (weatherCode >= 95) return "storm";
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) {
+    return isDay ? "rain-day" : "rain-night";
+  }
+  if ([1, 2, 3, 45, 48, 71, 73, 75, 77, 85, 86].includes(weatherCode)) {
+    return isDay ? "cloudy-day" : "cloudy-night";
+  }
+  return isDay ? "clear-day" : "clear-night";
+}
+
+function getWeatherLabel(weatherCode: number, isDay: boolean) {
+  if (weatherCode === 0) return isDay ? "Clear sky" : "Clear night";
+  if (weatherCode === 1) return isDay ? "Mostly sunny" : "Mostly clear";
+  if (weatherCode === 2) return "Partly cloudy";
+  if (weatherCode === 3) return "Overcast";
+  if ([45, 48].includes(weatherCode)) return "Misty";
+  if ([51, 53, 55, 56, 57].includes(weatherCode)) return "Light drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(weatherCode)) return "Rain showers";
+  if ([71, 73, 75, 77, 85, 86].includes(weatherCode)) return "Snow clouds";
+  if (weatherCode >= 95) return "Thunderstorm";
+  return isDay ? "Sunny" : "Night sky";
+}
+
+function formatWeatherClock(value: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function createAmbientWeatherPlaceholder(): DesktopWeatherData {
+  const now = new Date();
+  const hour = now.getHours();
+  const isDay = hour >= 6 && hour < 18;
+
+  return {
+    locationLabel: "Ambient dashboard",
+    sourceLabel: "Loading weather",
+    conditionLabel: isDay ? "Sunlit calm" : "Moonlit calm",
+    temperatureC: null,
+    apparentTemperatureC: null,
+    humidity: null,
+    windKph: null,
+    highC: null,
+    lowC: null,
+    sunrise: null,
+    sunset: null,
+    updatedAtLabel: formatWeatherClock(now.toISOString()) ?? "--",
+    isDay,
+    tone: isDay ? "clear-day" : "clear-night"
+  };
+}
+
+function mapWeatherData(payload: OpenMeteoForecast, locationLabel: string, sourceLabel: string): DesktopWeatherData {
+  const isDay = Boolean(payload.current.is_day);
+
+  return {
+    locationLabel,
+    sourceLabel,
+    conditionLabel: getWeatherLabel(payload.current.weather_code, isDay),
+    temperatureC: payload.current.temperature_2m,
+    apparentTemperatureC: payload.current.apparent_temperature,
+    humidity: payload.current.relative_humidity_2m,
+    windKph: payload.current.wind_speed_10m,
+    highC: payload.daily.temperature_2m_max?.[0] ?? null,
+    lowC: payload.daily.temperature_2m_min?.[0] ?? null,
+    sunrise: formatWeatherClock(payload.daily.sunrise?.[0] ?? null),
+    sunset: formatWeatherClock(payload.daily.sunset?.[0] ?? null),
+    updatedAtLabel: formatWeatherClock(payload.current.time) ?? "--",
+    isDay,
+    tone: getWeatherTone(payload.current.weather_code, isDay)
+  };
+}
 
 export default function FnbApp() {
   const supabase = getSupabaseBrowserClient();
   const envReady = hasSupabaseEnv();
 
   /* ── Core state ────────────────────────────────────── */
+  const [isFullItemsDialogOpen, setIsFullItemsDialogOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,6 +129,8 @@ export default function FnbApp() {
   });
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weatherInfo, setWeatherInfo] = useState<DesktopWeatherData>(() => createAmbientWeatherPlaceholder());
+  const [activeDesktopSection, setActiveDesktopSection] = useState("profile");
 
   /* ── UI state ──────────────────────────────────────── */
   const [usernameDraft, setUsernameDraft] = useState("");
@@ -37,6 +138,8 @@ export default function FnbApp() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isInviteFormOpen, setIsInviteFormOpen] = useState(false);
   const [isApprovalsDialogOpen, setIsApprovalsDialogOpen] = useState(false);
+  const [isRecentActivityDialogOpen, setIsRecentActivityDialogOpen] = useState(false);
+  const [isFriendsDialogOpen, setIsFriendsDialogOpen] = useState(false);
   const [inviteUsername, setInviteUsername] = useState("");
   const [debtForm, setDebtForm] = useState<DebtFormState>({ friendId: "", amount: "", reason: "", debtDate: new Date().toISOString().slice(0, 10), dueAt: "" });
   const [settlementForm, setSettlementForm] = useState<SettlementFormState>({ friendId: "", amount: "", note: "" });
@@ -52,9 +155,14 @@ export default function FnbApp() {
 
   /* ── Physical Back Button (Fixed for Android) ──────── */
   const historyPushedRef = useRef(false);
+  const profileSectionRef = useRef<HTMLDivElement | null>(null);
+  const networkSectionRef = useRef<HTMLElement | null>(null);
+  const moneySectionRef = useRef<HTMLElement | null>(null);
+  const itemsSectionRef = useRef<HTMLElement | null>(null);
+  const activitySectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const isAnyDialogOpen = isSidebarOpen || isInviteFormOpen || isApprovalsDialogOpen || isProfileDialogOpen || isStatementDialogOpen || isDebtDialogOpen || isSettlementDialogOpen || isItemsDialogOpen || isAboutDialogOpen;
+    const isAnyDialogOpen = isSidebarOpen || isInviteFormOpen || isApprovalsDialogOpen || isRecentActivityDialogOpen || isProfileDialogOpen || isStatementDialogOpen || isDebtDialogOpen || isSettlementDialogOpen || isItemsDialogOpen || isAboutDialogOpen || isFullItemsDialogOpen || isFriendsDialogOpen;
     const isSubPage = mobilePage !== "home";
     const needsBackHandler = isSubPage || isAnyDialogOpen;
 
@@ -70,7 +178,10 @@ export default function FnbApp() {
     const handlePopState = () => {
       historyPushedRef.current = false;
       if (isAboutDialogOpen) { setIsAboutDialogOpen(false); return; }
+      if (isFriendsDialogOpen) { setIsFriendsDialogOpen(false); return; }
+      if (isFullItemsDialogOpen) { setIsFullItemsDialogOpen(false); return; }
       if (isItemsDialogOpen) { setIsItemsDialogOpen(false); return; }
+      if (isRecentActivityDialogOpen) { setIsRecentActivityDialogOpen(false); return; }
       if (isSettlementDialogOpen) { setIsSettlementDialogOpen(false); return; }
       if (isDebtDialogOpen) { setIsDebtDialogOpen(false); return; }
       if (isStatementDialogOpen) { setIsStatementDialogOpen(false); return; }
@@ -83,7 +194,137 @@ export default function FnbApp() {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [mobilePage, isSidebarOpen, isInviteFormOpen, isApprovalsDialogOpen, isProfileDialogOpen, isStatementDialogOpen, isDebtDialogOpen, isSettlementDialogOpen, isItemsDialogOpen, isAboutDialogOpen]);
+  }, [mobilePage, isSidebarOpen, isInviteFormOpen, isApprovalsDialogOpen, isRecentActivityDialogOpen, isProfileDialogOpen, isStatementDialogOpen, isDebtDialogOpen, isSettlementDialogOpen, isItemsDialogOpen, isAboutDialogOpen, isFullItemsDialogOpen, isFriendsDialogOpen]);
+
+  useEffect(() => {
+    const isOverlayOpen = isSidebarOpen || isApprovalsDialogOpen || isRecentActivityDialogOpen || isProfileDialogOpen || isStatementDialogOpen || isDebtDialogOpen || isSettlementDialogOpen || isItemsDialogOpen || isAboutDialogOpen || isFullItemsDialogOpen || isFriendsDialogOpen;
+    if (!isOverlayOpen) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, [isSidebarOpen, isApprovalsDialogOpen, isRecentActivityDialogOpen, isProfileDialogOpen, isStatementDialogOpen, isDebtDialogOpen, isSettlementDialogOpen, isItemsDialogOpen, isAboutDialogOpen, isFullItemsDialogOpen, isFriendsDialogOpen]);
+
+  useEffect(() => {
+    document.body.classList.add("dashboard-page-active");
+    return () => document.body.classList.remove("dashboard-page-active");
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+    let activeController: AbortController | null = null;
+
+    async function fetchWeather(latitude: number, longitude: number, label: string, sourceLabel: string) {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+
+      const params = new URLSearchParams({
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        current: "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day",
+        daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset",
+        forecast_days: "1",
+        timezone: "auto"
+      });
+
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`Weather request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json() as OpenMeteoForecast;
+      if (!isCancelled) {
+        setWeatherInfo(mapWeatherData(payload, label, sourceLabel));
+      }
+    }
+
+    function loadWeather() {
+      if (!navigator.geolocation) {
+        void fetchWeather(WEATHER_FALLBACK.latitude, WEATHER_FALLBACK.longitude, WEATHER_FALLBACK.label, "Fallback weather").catch(() => {
+          if (!isCancelled) setWeatherInfo(createAmbientWeatherPlaceholder());
+        });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          void fetchWeather(position.coords.latitude, position.coords.longitude, "Near you", "Live weather").catch(() => {
+            void fetchWeather(WEATHER_FALLBACK.latitude, WEATHER_FALLBACK.longitude, WEATHER_FALLBACK.label, "Fallback weather").catch(() => {
+              if (!isCancelled) setWeatherInfo(createAmbientWeatherPlaceholder());
+            });
+          });
+        },
+        () => {
+          void fetchWeather(WEATHER_FALLBACK.latitude, WEATHER_FALLBACK.longitude, WEATHER_FALLBACK.label, "Fallback weather").catch(() => {
+            if (!isCancelled) setWeatherInfo(createAmbientWeatherPlaceholder());
+          });
+        },
+        { enableHighAccuracy: false, timeout: 7000, maximumAge: 900000 }
+      );
+    }
+
+    loadWeather();
+    const refreshTimer = window.setInterval(loadWeather, 1800000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(refreshTimer);
+      activeController?.abort();
+    };
+  }, []);
+
+  const desktopNavItems = useMemo<DesktopNavItem[]>(() => ([
+    { id: "profile", label: "Profile", shortLabel: "PF", hint: "Identity and refresh controls" },
+    { id: "network", label: "Network", shortLabel: "NW", hint: "Friends and balances" },
+    { id: "money", label: "Money", shortLabel: "MN", hint: "Debt and settlement flows" },
+    { id: "items", label: "Items", shortLabel: "IT", hint: "Shared tracker" },
+    { id: "activity", label: "Activity", shortLabel: "AC", hint: "Recent moves" }
+  ]), []);
+
+  useEffect(() => {
+    const sections = [
+      { id: "profile", ref: profileSectionRef },
+      { id: "network", ref: networkSectionRef },
+      { id: "money", ref: moneySectionRef },
+      { id: "items", ref: itemsSectionRef },
+      { id: "activity", ref: activitySectionRef }
+    ];
+
+    const updateActiveSection = () => {
+      const triggerLine = window.innerHeight * 0.35;
+      let nextActive = "profile";
+
+      for (const section of sections) {
+        const node = section.ref.current;
+        if (!node) continue;
+        if (node.getBoundingClientRect().top <= triggerLine) {
+          nextActive = section.id;
+        }
+      }
+
+      setActiveDesktopSection(nextActive);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, []);
 
   /* ── Toast auto-dismiss ────────────────────────────── */
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -284,12 +525,13 @@ export default function FnbApp() {
     return dashboard.sharedItems.filter((i) => (i.status === "pending" && i.friend_id === session.user.id) || (i.status === "pending_return" && i.owner_id === session.user.id));
   }, [dashboard.sharedItems, session?.user]);
 
-  const recentActivity = useMemo<ActivityItem[]>(() => {
+  const allRecentActivity = useMemo<ActivityItem[]>(() => {
     if (!session?.user) return [];
     const debtItems = dashboard.debtRequests.map((r) => { const p = profilesById.get(r.creator_id === session.user.id ? r.approver_id : r.creator_id); return { id: r.id, kind: "debt" as const, createdAt: r.created_at, profile: p ?? null, label: r.creator_id === session.user.id ? `${readableProfile(p)} owes you` : `You owe ${readableProfile(p)}`, detail: r.reason, status: r.status, amountInPaise: r.amount_in_paise }; });
     const settItems = dashboard.settlements.map((s) => { const p = profilesById.get(s.payer_id === session.user.id ? s.receiver_id : s.payer_id); return { id: s.id, kind: "settlement" as const, createdAt: s.settled_at, profile: p ?? null, label: s.payer_id === session.user.id ? `You paid ${readableProfile(p)}` : `${readableProfile(p)} paid you`, detail: s.note || "Settlement recorded", status: s.status, amountInPaise: s.amount_in_paise }; });
-    return [...debtItems, ...settItems].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 10);
+    return [...debtItems, ...settItems].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [dashboard.debtRequests, dashboard.settlements, profilesById, session?.user]);
+  const recentActivity = useMemo(() => allRecentActivity.slice(0, 10), [allRecentActivity]);
 
   const totalOwedToYou = balances.reduce((s, f) => f.balanceInPaise > 0 ? s + f.balanceInPaise : s, 0);
   const totalYouOwe = balances.reduce((s, f) => f.balanceInPaise < 0 ? s + Math.abs(f.balanceInPaise) : s, 0);
@@ -470,6 +712,22 @@ export default function FnbApp() {
     if (!isProfileDialogOpen) setUsernameDraft(dashboard.profile?.username ?? "");
   }, [dashboard.profile?.username, isProfileDialogOpen]);
 
+  function scrollToDesktopSection(sectionId: string) {
+    const sectionMap: Record<string, React.RefObject<HTMLElement | HTMLDivElement | null>> = {
+      profile: profileSectionRef,
+      network: networkSectionRef,
+      money: moneySectionRef,
+      items: itemsSectionRef,
+      activity: activitySectionRef
+    };
+
+    const target = sectionMap[sectionId]?.current;
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveDesktopSection(sectionId);
+  }
+
   /* ── Early returns ─────────────────────────────────── */
   if (!envReady) {
     return (
@@ -508,6 +766,10 @@ export default function FnbApp() {
         <div className={`toast-notification ${error ? "toast-error" : "toast-success"} ${toastExiting ? "toast-exiting" : ""}`}>{error ?? feedback}</div>
       )}
 
+      <DashboardAmbientBackdrop tone={weatherInfo.tone} />
+      <DesktopWeatherRail weather={weatherInfo} />
+      <MagicSectionNav items={desktopNavItems} activeId={activeDesktopSection} onNavigate={scrollToDesktopSection} />
+
       {/* Mobile Sidebar */}
       <MobileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} profile={dashboard.profile} totalOwedToYou={totalOwedToYou} totalYouOwe={totalYouOwe} onOpenProfile={openProfileDialog} onRefresh={refreshData} onSignOut={signOut} />
 
@@ -516,44 +778,70 @@ export default function FnbApp() {
         <MobileNetworkPage balances={balances} inviteUsername={inviteUsername} setInviteUsername={setInviteUsername} onSendInvite={sendInvite} mutating={mutating} incomingInvites={incomingInvites} outgoingInvites={outgoingInvites} profilesById={profilesById} onViewStatement={openStatementDialog} onRespondInvite={respondToInvite} onBack={() => setMobilePage("home")} />
       )}
       {mobilePage === "approvals" && (
-        <MobileApprovalsPage pendingApprovals={pendingApprovals} pendingSettlements={pendingSettlements} profilesById={profilesById} mutating={mutating} onRespondDebt={respondToDebt} onRespondSettlement={respondToSettlement} onBack={() => setMobilePage("home")} />
+        <MobileApprovalsPage 
+          pendingApprovals={pendingApprovals} 
+          pendingSettlements={pendingSettlements} 
+          pendingItems={pendingItems}
+          profilesById={profilesById} 
+          mutating={mutating} 
+          onRespondDebt={respondToDebt} 
+          onRespondSettlement={respondToSettlement} 
+          onRespondItem={respondToItem}
+          onBack={() => setMobilePage("home")} 
+        />
       )}
       {mobilePage === "money" && (
         <MobileMoneyPage onOpenDebt={() => { resetMessages(); setIsDebtDialogOpen(true); }} onOpenSettlement={() => { resetMessages(); setIsSettlementDialogOpen(true); }} onBack={() => setMobilePage("home")} />
       )}
       {mobilePage === "items" && (
-        <MobileItemsPage sharedItems={dashboard.sharedItems} profiles={dashboard.profiles} userId={session.user.id} onOpenItemsDialog={() => setIsItemsDialogOpen(true)} onCancelItem={cancelItem} onRequestReturn={requestItemReturn} onBack={() => setMobilePage("home")} />
+        <MobileItemsPage sharedItems={dashboard.sharedItems} profiles={dashboard.profiles} userId={session.user.id} onOpenItemsDialog={() => setIsItemsDialogOpen(true)} onOpenApprovals={() => setMobilePage("approvals")} onCancelItem={cancelItem} onRequestReturn={requestItemReturn} onBack={() => setMobilePage("home")} />
       )}
       {mobilePage === "activity" && (
-        <MobileActivityPage recentActivity={recentActivity} onBack={() => setMobilePage("home")} />
+        <MobileActivityPage recentActivity={allRecentActivity} onBack={() => setMobilePage("home")} />
       )}
 
-      <main className="shell app-shell">
+      <main className="shell app-shell dashboard-shell">
         {/* Topbar */}
         <Topbar onOpenSidebar={() => setIsSidebarOpen(true)} onOpenAbout={() => setIsAboutDialogOpen(true)} />
 
         {/* Desktop Profile Strip */}
-        <ProfileStrip profile={dashboard.profile} userEmail={session.user.email ?? ""} refreshing={refreshing} onEditProfile={openProfileDialog} onRefresh={refreshData} onSignOut={signOut} />
+        <div className="desktop-section-anchor" ref={profileSectionRef}>
+          <ProfileStrip profile={dashboard.profile} userEmail={session.user.email ?? ""} refreshing={refreshing} onEditProfile={openProfileDialog} onRefresh={refreshData} onSignOut={signOut} />
+        </div>
 
         {/* Desktop Stat Grid */}
-        <StatGrid friendCount={balances.length} totalOwedToYou={totalOwedToYou} totalYouOwe={totalYouOwe} pendingCount={totalPending} onOpenApprovals={() => { resetMessages(); setIsApprovalsDialogOpen(true); }} />
+        <StatGrid
+          friendCount={balances.length}
+          totalOwedToYou={totalOwedToYou}
+          totalYouOwe={totalYouOwe}
+          pendingCount={totalPending}
+          incomingInvites={incomingInvites}
+          outgoingInvites={outgoingInvites}
+          onOpenFriends={() => { resetMessages(); setIsFriendsDialogOpen(true); }}
+          onOpenApprovals={() => { resetMessages(); setIsApprovalsDialogOpen(true); }}
+        />
 
         {/* Mobile Home */}
-        <MobileHome profile={dashboard.profile} pendingCount={totalPending} balancesCount={balances.length} recentActivityCount={recentActivity.length} sharedItemsCount={dashboard.sharedItems.length} onNavigate={setMobilePage} onOpenSidebar={() => setIsSidebarOpen(true)} />
+        <MobileHome profile={dashboard.profile} pendingCount={totalPending} balancesCount={balances.length} recentActivityCount={allRecentActivity.length} sharedItemsCount={dashboard.sharedItems.length} onNavigate={setMobilePage} onOpenSidebar={() => setIsSidebarOpen(true)} />
 
         {/* Desktop Dashboard Grid */}
         <DashboardGrid
           balances={balances} selectedFriendId={selectedFriendId} isInviteFormOpen={isInviteFormOpen} setIsInviteFormOpen={setIsInviteFormOpen}
           inviteUsername={inviteUsername} setInviteUsername={setInviteUsername} onSendInvite={sendInvite} mutating={mutating}
-          incomingInvites={incomingInvites} outgoingInvites={outgoingInvites} profilesById={profilesById}
-          onViewStatement={openStatementDialog} onRespondInvite={respondToInvite}
+          onViewStatement={openStatementDialog}
           onOpenDebt={() => { resetMessages(); setIsDebtDialogOpen(true); }} onOpenSettlement={() => { resetMessages(); setIsSettlementDialogOpen(true); }}
-          onOpenItemsDialog={() => setIsItemsDialogOpen(true)} sharedItems={dashboard.sharedItems} profiles={dashboard.profiles}
+          onOpenItemsDialog={() => setIsItemsDialogOpen(true)} 
+          onOpenFullItems={() => { resetMessages(); setIsFullItemsDialogOpen(true); }}
+          sharedItems={dashboard.sharedItems} profiles={dashboard.profiles}
           userId={session.user.id} onCancelItem={cancelItem} onRequestReturn={requestItemReturn}
+          onOpenApprovals={() => { resetMessages(); setIsApprovalsDialogOpen(true); }}
+          networkSectionRef={networkSectionRef}
+          moneySectionRef={moneySectionRef}
+          itemsSectionRef={itemsSectionRef}
         />
 
         {/* Desktop Activity Panel */}
-        <ActivityPanel recentActivity={recentActivity} />
+        <ActivityPanel recentActivity={recentActivity} onOpenFullActivity={() => { resetMessages(); setIsRecentActivityDialogOpen(true); }} sectionRef={activitySectionRef} />
 
         {/* ── All Dialogs ──────────────────────────────── */}
         <ProfileDialog isOpen={isProfileDialogOpen} onClose={() => setIsProfileDialogOpen(false)} profileNeedsSetup={profileNeedsSetup} profile={dashboard.profile} usernameDraft={usernameDraft} setUsernameDraft={setUsernameDraft} upiIdDraft={upiIdDraft} setUpiIdDraft={setUpiIdDraft} error={error} feedback={feedback} savingUsername={savingUsername} onSave={saveProfile} />
@@ -563,6 +851,26 @@ export default function FnbApp() {
         <ApprovalsDialog isOpen={isApprovalsDialogOpen} onClose={() => setIsApprovalsDialogOpen(false)} pendingApprovals={pendingApprovals} pendingSettlements={pendingSettlements} pendingItems={pendingItems} profilesById={profilesById} error={error} feedback={feedback} mutating={mutating} onRespondDebt={respondToDebt} onRespondSettlement={respondToSettlement} onRespondItem={respondToItem} />
         <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
         <ItemsDialog isOpen={isItemsDialogOpen} onClose={() => setIsItemsDialogOpen(false)} itemForm={itemForm} setItemForm={setItemForm} balances={balances} error={error} feedback={feedback} onSubmit={submitItemForm} />
+        <RecentActivityDialog isOpen={isRecentActivityDialogOpen} onClose={() => setIsRecentActivityDialogOpen(false)} recentActivity={allRecentActivity} />
+        <FriendsOverviewDialog
+          isOpen={isFriendsDialogOpen}
+          onClose={() => setIsFriendsDialogOpen(false)}
+          incomingInvites={incomingInvites}
+          outgoingInvites={outgoingInvites}
+          profilesById={profilesById}
+          mutating={mutating}
+          onRespondInvite={respondToInvite}
+        />
+        <FullItemsDialog
+          isOpen={isFullItemsDialogOpen}
+          onClose={() => setIsFullItemsDialogOpen(false)}
+          sharedItems={dashboard.sharedItems}
+          profiles={dashboard.profiles}
+          userId={session.user.id}
+          onCancelItem={cancelItem}
+          onRequestReturn={requestItemReturn}
+          onOpenApprovals={() => { setIsFullItemsDialogOpen(false); setIsApprovalsDialogOpen(true); }}
+        />
       </main>
     </>
   );

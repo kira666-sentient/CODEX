@@ -127,10 +127,16 @@
   }
 
   .mobile-welcome-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     box-shadow: 0 8px 16px rgba(0,0,0,0.06);
     border-radius: 50%;
     transition: transform 0.2s ease;
+    border: 0;
+    background: transparent;
+    padding: 0;
   }
 
   .list-card p,
@@ -185,7 +191,14 @@
   }
 
   .mobile-nav-card .nav-card-icon {
-    font-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     line-height: 1;
     background: rgba(255,255,255,0.8);
     padding: 8px;
@@ -261,8 +274,9 @@
   .mobile-page-header {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
-    padding: 16px 20px;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 20px 16px;
     background: rgba(244, 239, 230, 0.95);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--line);
@@ -274,10 +288,9 @@
   .mobile-back-btn {
     background: none;
     border: none;
-    font-size: 1.1rem;
-    padding: 8px;
-    margin: -8px;
-    margin-right: 4px;
+    font-size: 0.95rem;
+    padding: 8px 0;
+    margin: 0;
     color: var(--accent);
     font-weight: 700;
     cursor: pointer;
@@ -293,7 +306,53 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 16px 16px 40px;
+    padding: 16px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-section {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-section + .mobile-section {
+    margin-top: 24px;
+  }
+
+  .mobile-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+  }
+
+  .mobile-action-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .mobile-page-add-button {
+    margin-left: auto;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    font-size: 1.1rem;
+  }
+
+  .mobile-sidebar-logo {
+    height: 32px;
+    width: auto;
+  }
+
+  .mobile-sidebar-close {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .mobile-sidebar-username {
+    margin: 2px 0 0;
+    font-size: 0.85rem;
   }
 
   /* --- Mobile Sidebar Drawer --- */
@@ -390,23 +449,25 @@
 
   /* --- Dialogs as full-screen on mobile --- */
   .dialog-backdrop {
-    align-items: flex-start;
+    align-items: end;
     padding: 0;
-    backdrop-filter: none;
-    background: var(--bg);
+    background: rgba(31, 26, 20, 0.34);
+    backdrop-filter: blur(8px);
   }
 
   .dialog-card {
     margin: 0;
     width: 100vw;
-    min-height: 100dvh;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
+    min-height: auto;
+    max-height: min(92dvh, 820px);
+    border-radius: 28px 28px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 -18px 48px rgba(31, 26, 20, 0.16);
     padding: 0;
-    animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: mobileSheetIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   .dialog-head {
@@ -417,23 +478,28 @@
     z-index: 10;
     padding: 16px 20px;
     border-bottom: 1px solid var(--line);
-    flex-direction: row-reverse;
-    justify-content: flex-end;
+    flex-direction: row;
+    justify-content: space-between;
     gap: 12px;
-    align-items: center;
+    align-items: flex-start;
   }
 
-  .dialog-head h2 { font-size: 1.15rem; }
-  .dialog-head p { display: none; }
+  .dialog-head h2 { font-size: 1.1rem; }
+  .dialog-head p {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
 
   .dialog-close-button {
     margin: 0;
     font-weight: 700;
     color: var(--accent);
     font-size: 0.9rem;
-    min-width: auto;
-    min-height: auto;
-    padding: 8px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
   }
 
   .statement-table th,
@@ -489,13 +555,36 @@
     font-weight: 600;
   }
 
-  .dialog-body, .statement-shell, .dialog-profile, .form-grid, .action-row {
+  .dialog-body, .statement-shell, .dialog-profile, .form-grid, .action-row, .dialog-banner {
     padding-left: 16px;
     padding-right: 16px;
   }
 
+  .dialog-body {
+    padding-top: 16px;
+    padding-bottom: 24px;
+  }
+
+  .dialog-profile {
+    padding-top: 16px;
+  }
+
   .action-row {
     padding-bottom: 24px;
+  }
+
+  .dialog-split-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-callout,
+  .item-full-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .item-full-actions {
+    align-items: stretch;
   }
 
   .statement-shell {
@@ -587,6 +676,15 @@
 
   .landing-feature-list {
     gap: 24px;
+  }
+}
+
+@keyframes mobileSheetIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

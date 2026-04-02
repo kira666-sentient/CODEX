@@ -7,10 +7,6 @@ import type { FriendSummary, ActivityItem } from "@/lib/types";
 import { formatCurrency, formatDateTime, formatDate, formatDateOnly, readableProfile } from "@/lib/helpers";
 import { Avatar, PersonIdentity } from "./ui";
 
-/* ═══════════════════════════════════════════════════════
-   Mobile Sidebar Drawer
-   ═══════════════════════════════════════════════════════ */
-
 export interface MobileSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,14 +27,14 @@ export function MobileSidebar(props: MobileSidebarProps) {
       <div className="mobile-sidebar-backdrop" onClick={onClose} />
       <aside className="mobile-sidebar" onClick={(e) => e.stopPropagation()}>
         <div className="mobile-sidebar-header">
-          <img src="/fnb-logo.svg" alt="F&B" style={{ height: "32px", width: "auto" }} />
-          <button className="ghost-button" onClick={onClose} style={{ padding: '8px', fontSize: '0.85rem' }}>Close</button>
+          <img className="mobile-sidebar-logo" src="/fnb-logo.svg" alt="F&B" />
+          <button className="ghost-button mobile-sidebar-close" onClick={onClose} type="button">Close</button>
         </div>
         <div className="mobile-sidebar-profile">
           <Avatar profile={profile} size="medium" />
           <div>
             <strong>{readableProfile(profile)}</strong>
-            <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>@{profile?.username ?? "not-set"}</p>
+            <p className="muted mobile-sidebar-username">@{profile?.username ?? "not-set"}</p>
           </div>
         </div>
         <div className="mobile-sidebar-stats">
@@ -52,18 +48,14 @@ export function MobileSidebar(props: MobileSidebarProps) {
           </div>
         </div>
         <div className="mobile-sidebar-nav">
-          <button className="ghost-button" onClick={() => { onClose(); onOpenProfile(); }}>⚙️ Profile &amp; UPI setup</button>
-          <button className="ghost-button" onClick={() => { onClose(); onRefresh(); }}>🔄 Refresh data</button>
-          <button className="ghost-button danger-ghost-button" onClick={onSignOut}>🚪 Sign out</button>
+          <button className="ghost-button" onClick={() => { onClose(); onOpenProfile(); }} type="button">Profile and UPI setup</button>
+          <button className="ghost-button" onClick={() => { onClose(); onRefresh(); }} type="button">Refresh data</button>
+          <button className="ghost-button danger-ghost-button" onClick={onSignOut} type="button">Sign out</button>
         </div>
       </aside>
     </div>
   );
 }
-
-/* ═══════════════════════════════════════════════════════
-   Mobile Home (Welcome + Nav Grid)
-   ═══════════════════════════════════════════════════════ */
 
 export interface MobileHomeProps {
   profile: Profile | null;
@@ -82,36 +74,36 @@ export function MobileHome(props: MobileHomeProps) {
     <>
       <header className="mobile-welcome mobile-only">
         <div className="mobile-welcome-text">
-          <h2>Hello, {profile?.full_name?.split(' ')[0] || 'Friend'}</h2>
+          <h2>Hello, {profile?.full_name?.split(" ")[0] || "Friend"}</h2>
           <p className="muted">You have {pendingCount} items to review.</p>
         </div>
-        <div className="mobile-welcome-avatar" onClick={onOpenSidebar}>
+        <button className="mobile-welcome-avatar" onClick={onOpenSidebar} type="button">
           <Avatar profile={profile} size="medium" />
-        </div>
+        </button>
       </header>
 
       <div className="mobile-home-grid mobile-only">
-        <button className="mobile-nav-card" onClick={() => onNavigate("network")}>
-          <span className="nav-card-icon">👥</span>
+        <button className="mobile-nav-card" onClick={() => onNavigate("network")} type="button">
+          <span className="nav-card-icon">NW</span>
           <span className="nav-card-label">Your Network</span>
           <span className="nav-card-badge">{balancesCount} friends</span>
         </button>
-        <button className="mobile-nav-card" onClick={() => onNavigate("approvals")}>
-          <span className="nav-card-icon">⏳</span>
+        <button className="mobile-nav-card" onClick={() => onNavigate("approvals")} type="button">
+          <span className="nav-card-icon">AP</span>
           <span className="nav-card-label">Approvals</span>
           <span className="nav-card-badge">{pendingCount} pending</span>
         </button>
-        <button className="mobile-nav-card" onClick={() => onNavigate("money")}>
-          <span className="nav-card-icon">💰</span>
+        <button className="mobile-nav-card" onClick={() => onNavigate("money")} type="button">
+          <span className="nav-card-icon">RS</span>
           <span className="nav-card-label">Money Actions</span>
         </button>
-        <button className="mobile-nav-card" onClick={() => onNavigate("activity")}>
-          <span className="nav-card-icon">📊</span>
+        <button className="mobile-nav-card" onClick={() => onNavigate("activity")} type="button">
+          <span className="nav-card-icon">LG</span>
           <span className="nav-card-label">Activity</span>
           <span className="nav-card-badge">{recentActivityCount}</span>
         </button>
-        <button className="mobile-nav-card items-card" onClick={() => onNavigate("items")}>
-          <span className="nav-card-icon">🎒</span>
+        <button className="mobile-nav-card items-card" onClick={() => onNavigate("items")} type="button">
+          <span className="nav-card-icon">IT</span>
           <span className="nav-card-label">Item Tracker</span>
           <span className="nav-card-badge">{sharedItemsCount} items</span>
         </button>
@@ -119,10 +111,6 @@ export function MobileHome(props: MobileHomeProps) {
     </>
   );
 }
-
-/* ═══════════════════════════════════════════════════════
-   Mobile Full-Screen Pages
-   ═══════════════════════════════════════════════════════ */
 
 export interface MobileNetworkPageProps {
   balances: FriendSummary[];
@@ -144,89 +132,99 @@ export function MobileNetworkPage(props: MobileNetworkPageProps) {
   return (
     <div className="mobile-page mobile-only">
       <div className="mobile-page-header">
-        <button className="mobile-back-btn" onClick={onBack}>← Back</button>
+        <button className="mobile-back-btn" onClick={onBack} type="button">Back</button>
         <h2>Your Network</h2>
       </div>
       <div className="mobile-page-content">
-        <div style={{ marginBottom: '20px' }}>
-          <span className="profile-label" style={{ marginBottom: '8px' }}>Invite by username:</span>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input aria-label="Invite by username" value={inviteUsername} onChange={(e) => setInviteUsername(e.target.value)} placeholder="friend_username" style={{ minHeight: '42px', padding: '8px 12px', flex: 1, minWidth: 0 }} />
-            <button className="primary-button" onClick={onSendInvite} disabled={mutating} style={{ minHeight: '42px', whiteSpace: 'nowrap', padding: '0 20px' }}>Send</button>
+        <section className="mobile-section">
+          <span className="profile-label subpanel-label">Invite by username</span>
+          <div className="inline-form-row">
+            <input aria-label="Invite by username" value={inviteUsername} onChange={(e) => setInviteUsername(e.target.value)} placeholder="friend_username" />
+            <button className="primary-button inline-form-submit" onClick={onSendInvite} disabled={mutating} type="button">Send</button>
           </div>
-        </div>
+        </section>
 
-        <h3 style={{ marginBottom: '12px' }}>Your friends <span className="count-chip">{balances.length}</span></h3>
-        {balances.length === 0 ? (
-          <p className="empty-state">No accepted friends yet.</p>
-        ) : (
-          <div className="stack mini-stack">
-            {balances.map((friend) => (
-              <button className="friend-card" key={friend.friendshipId} onClick={() => onViewStatement(friend.profile.id)}>
-                <PersonIdentity profile={friend.profile} />
-                <div className="friend-card-side">
-                  <span className={`amount-badge ${friend.balanceInPaise > 0 ? "positive" : friend.balanceInPaise < 0 ? "negative" : ""}`}>{formatCurrency(friend.balanceInPaise)}</span>
+        <section className="mobile-section">
+          <h3 className="mobile-section-title">Your friends <span className="count-chip">{balances.length}</span></h3>
+          {balances.length === 0 ? (
+            <p className="empty-state">No accepted friends yet.</p>
+          ) : (
+            <div className="stack mini-stack">
+              {balances.map((friend) => (
+                <button className="friend-card" key={friend.friendshipId} onClick={() => onViewStatement(friend.profile.id)} type="button">
+                  <PersonIdentity profile={friend.profile} />
+                  <div className="friend-card-side">
+                    <span className={`amount-badge ${friend.balanceInPaise > 0 ? "positive" : friend.balanceInPaise < 0 ? "negative" : ""}`}>{formatCurrency(friend.balanceInPaise)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mobile-section">
+          <h3 className="mobile-section-title">Incoming invites <span className="count-chip">{incomingInvites.length}</span></h3>
+          {incomingInvites.length === 0 ? (
+            <p className="empty-state">No incoming invites right now.</p>
+          ) : (
+            <div className="stack mini-stack">
+              {incomingInvites.map((invite) => (
+                <div className="list-card" key={invite.id}>
+                  <PersonIdentity profile={profilesById.get(invite.requester_id)} />
+                  <div className="row-actions">
+                    <button className="primary-button compact-action-button" onClick={() => onRespondInvite(invite.id, true)} disabled={mutating} type="button">Accept</button>
+                    <button className="ghost-button compact-action-button" onClick={() => onRespondInvite(invite.id, false)} disabled={mutating} type="button">Decline</button>
+                  </div>
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </section>
 
-        <h3 style={{ marginTop: '24px', marginBottom: '12px' }}>Incoming invites <span className="count-chip">{incomingInvites.length}</span></h3>
-        {incomingInvites.length === 0 ? <p className="empty-state">No incoming invites right now.</p> : (
-          <div className="stack mini-stack">
-            {incomingInvites.map((invite) => (
-              <div className="list-card" key={invite.id}>
-                <PersonIdentity profile={profilesById.get(invite.requester_id)} />
-                <div className="row-actions">
-                  <button className="primary-button" onClick={() => onRespondInvite(invite.id, true)} disabled={mutating}>Accept</button>
-                  <button className="ghost-button" onClick={() => onRespondInvite(invite.id, false)} disabled={mutating}>Decline</button>
+        <section className="mobile-section">
+          <h3 className="mobile-section-title">Outgoing invites <span className="count-chip">{outgoingInvites.length}</span></h3>
+          {outgoingInvites.length === 0 ? (
+            <p className="empty-state">No pending invites sent.</p>
+          ) : (
+            <div className="stack mini-stack">
+              {outgoingInvites.map((invite) => (
+                <div className="list-card" key={invite.id}>
+                  <PersonIdentity profile={profilesById.get(invite.addressee_id)} />
+                  <span className="pill">Waiting</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <h3 style={{ marginTop: '24px', marginBottom: '12px' }}>Outgoing invites <span className="count-chip">{outgoingInvites.length}</span></h3>
-        {outgoingInvites.length === 0 ? <p className="empty-state">No pending invites sent.</p> : (
-          <div className="stack mini-stack">
-            {outgoingInvites.map((invite) => (
-              <div className="list-card" key={invite.id}>
-                <PersonIdentity profile={profilesById.get(invite.addressee_id)} />
-                <span className="pill">Waiting</span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
 }
 
-/* ── Mobile Approvals Page ───────────────────────────── */
-
 export interface MobileApprovalsPageProps {
   pendingApprovals: DebtRequest[];
   pendingSettlements: Settlement[];
+  pendingItems: SharedItem[];
   profilesById: Map<string, Profile>;
   mutating: boolean;
   onRespondDebt: (id: string, approve: boolean) => void;
   onRespondSettlement: (id: string, approve: boolean) => void;
+  onRespondItem: (id: string, action: "approve" | "reject" | "return_confirm") => void;
   onBack: () => void;
 }
 
 export function MobileApprovalsPage(props: MobileApprovalsPageProps) {
-  const { pendingApprovals, pendingSettlements, profilesById, mutating, onRespondDebt, onRespondSettlement, onBack } = props;
+  const { pendingApprovals, pendingSettlements, pendingItems, profilesById, mutating, onRespondDebt, onRespondSettlement, onRespondItem, onBack } = props;
 
   return (
     <div className="mobile-page mobile-only">
       <div className="mobile-page-header">
-        <button className="mobile-back-btn" onClick={onBack}>← Back</button>
+        <button className="mobile-back-btn" onClick={onBack} type="button">Back</button>
         <h2>Pending Approvals</h2>
       </div>
       <div className="mobile-page-content">
-        {pendingApprovals.length === 0 && pendingSettlements.length === 0 ? (
-          <p className="empty-state">No approvals waiting for you. 🎉</p>
+        {pendingApprovals.length === 0 && pendingSettlements.length === 0 && pendingItems.length === 0 ? (
+          <p className="empty-state">No approvals waiting for you.</p>
         ) : (
           <div className="stack mini-stack">
             {pendingApprovals.map((request) => (
@@ -237,8 +235,8 @@ export function MobileApprovalsPage(props: MobileApprovalsPageProps) {
                   <small>Debt date {formatDateOnly(new Date(request.debt_date))} - Due {formatDate(request.due_at)}</small>
                 </div>
                 <div className="row-actions">
-                  <button className="primary-button" onClick={() => onRespondDebt(request.id, true)} disabled={mutating}>Approve</button>
-                  <button className="ghost-button" onClick={() => onRespondDebt(request.id, false)} disabled={mutating}>Reject</button>
+                  <button className="primary-button compact-action-button" onClick={() => onRespondDebt(request.id, true)} disabled={mutating} type="button">Approve</button>
+                  <button className="ghost-button compact-action-button" onClick={() => onRespondDebt(request.id, false)} disabled={mutating} type="button">Reject</button>
                 </div>
               </div>
             ))}
@@ -250,11 +248,29 @@ export function MobileApprovalsPage(props: MobileApprovalsPageProps) {
                   <small>{settlement.note || "No note"}</small>
                 </div>
                 <div className="row-actions">
-                  <button className="primary-button" onClick={() => onRespondSettlement(settlement.id, true)} disabled={mutating}>Approve</button>
-                  <button className="ghost-button" onClick={() => onRespondSettlement(settlement.id, false)} disabled={mutating}>Reject</button>
+                  <button className="primary-button compact-action-button" onClick={() => onRespondSettlement(settlement.id, true)} disabled={mutating} type="button">Approve</button>
+                  <button className="ghost-button compact-action-button" onClick={() => onRespondSettlement(settlement.id, false)} disabled={mutating} type="button">Reject</button>
                 </div>
               </div>
             ))}
+            {pendingItems.map((item) => {
+              const isReturn = item.status === "pending_return";
+              return (
+                <div className="list-card dense" key={item.id}>
+                  <div>
+                    <PersonIdentity profile={profilesById.get(item.owner_id)} />
+                    <p><strong>{item.item_name}</strong> request</p>
+                    <small>{isReturn ? "Wants to confirm this item was returned" : (item.type === "gave" ? "Wants to lend this to you" : "Wants to borrow this from you")}</small>
+                  </div>
+                  <div className="row-actions">
+                    <button className="primary-button compact-action-button" onClick={() => onRespondItem(item.id, isReturn ? "return_confirm" : "approve")} disabled={mutating} type="button">
+                      {isReturn ? "Confirm" : "Approve"}
+                    </button>
+                    <button className="ghost-button compact-action-button" onClick={() => onRespondItem(item.id, "reject")} disabled={mutating} type="button">Reject</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -262,17 +278,15 @@ export function MobileApprovalsPage(props: MobileApprovalsPageProps) {
   );
 }
 
-/* ── Mobile Money Page ───────────────────────────────── */
-
 export function MobileMoneyPage({ onOpenDebt, onOpenSettlement, onBack }: { onOpenDebt: () => void; onOpenSettlement: () => void; onBack: () => void }) {
   return (
     <div className="mobile-page mobile-only">
       <div className="mobile-page-header">
-        <button className="mobile-back-btn" onClick={onBack}>← Back</button>
+        <button className="mobile-back-btn" onClick={onBack} type="button">Back</button>
         <h2>Money Actions</h2>
       </div>
       <div className="mobile-page-content">
-        <div style={{ display: 'grid', gap: '12px' }}>
+        <div className="mobile-action-grid">
           <button className="action-option-card" onClick={onOpenDebt} type="button">
             <span className="profile-label">Approval flow</span>
             <strong>Create debt</strong>
@@ -289,27 +303,26 @@ export function MobileMoneyPage({ onOpenDebt, onOpenSettlement, onBack }: { onOp
   );
 }
 
-/* ── Mobile Items Page ───────────────────────────────── */
-
 export interface MobileItemsPageProps {
   sharedItems: SharedItem[];
   profiles: Profile[];
   userId: string;
   onOpenItemsDialog: () => void;
+  onOpenApprovals: () => void;
   onCancelItem: (id: string) => void;
   onRequestReturn: (id: string, e?: React.MouseEvent) => void;
   onBack: () => void;
 }
 
 export function MobileItemsPage(props: MobileItemsPageProps) {
-  const { sharedItems, profiles, userId, onOpenItemsDialog, onCancelItem, onRequestReturn, onBack } = props;
+  const { sharedItems, profiles, userId, onOpenItemsDialog, onOpenApprovals, onCancelItem, onRequestReturn, onBack } = props;
 
   return (
     <div className="mobile-page mobile-only">
       <div className="mobile-page-header">
-        <button className="mobile-back-btn" onClick={onBack}>← Back</button>
+        <button className="mobile-back-btn" onClick={onBack} type="button">Back</button>
         <h2>Shared Items</h2>
-        <button className="ghost-button" onClick={onOpenItemsDialog} style={{ marginLeft: "auto", fontSize: "1.2rem", padding: "4px" }}>+</button>
+        <button className="ghost-button mobile-page-add-button" onClick={onOpenItemsDialog} type="button">+</button>
       </div>
       <div className="mobile-page-content">
         {sharedItems.length === 0 ? (
@@ -317,25 +330,27 @@ export function MobileItemsPage(props: MobileItemsPageProps) {
         ) : (
           <div className="stack mini-stack">
             {sharedItems.map((item) => (
-              <div className="list-card dense" key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="list-card dense item-row-card" key={item.id}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="item-row-header">
                     <strong>{item.item_name}</strong>
-                    <span className={`pill status-${item.status}`} style={{ fontSize: '0.6rem', padding: '2px 6px' }}>{item.status}</span>
+                    <span className={`pill pill-tiny status-${item.status}`}>{item.status}</span>
                   </div>
-                  <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>
-                    {item.type === 'gave' ? 'Lent to' : 'Borrowed from'} {profiles.find((p) => p.id === item.friend_id)?.full_name || 'friend'}
+                  <p className="muted item-row-copy">
+                    {item.type === "gave" ? "Lent to" : "Borrowed from"} {profiles.find((p) => p.id === item.friend_id)?.full_name || "friend"}
                   </p>
                 </div>
                 <div className="row-actions">
-                  {item.status === 'pending' && item.owner_id === userId && (
-                    <button className="ghost-button danger-ghost-button" onClick={() => onCancelItem(item.id)} style={{ padding: '6px' }}>Cancel</button>
+                  {item.status === "pending" && item.owner_id === userId && (
+                    <button className="ghost-button danger-ghost-button compact-action-button" onClick={() => onCancelItem(item.id)} type="button">Cancel</button>
                   )}
-                  {item.status === 'active' && (
-                    ((item.type === 'gave' && item.friend_id === userId) ||
-                     (item.type === 'borrowed' && item.owner_id === userId)) ? (
-                      <button className="ghost-button" onClick={(e) => onRequestReturn(item.id, e)} style={{ padding: '6px' }}>Return</button>
+                  {item.status === "active" && (
+                    ((item.type === "gave" && item.friend_id === userId) || (item.type === "borrowed" && item.owner_id === userId)) ? (
+                      <button className="ghost-button compact-action-button" onClick={(e) => onRequestReturn(item.id, e)} type="button">Return</button>
                     ) : null
+                  )}
+                  {((item.status === "pending" && item.friend_id === userId) || (item.status === "pending_return" && item.owner_id === userId)) && (
+                    <button className="ghost-button compact-action-button review-link-button" onClick={onOpenApprovals} type="button">Review</button>
                   )}
                 </div>
               </div>
@@ -347,13 +362,11 @@ export function MobileItemsPage(props: MobileItemsPageProps) {
   );
 }
 
-/* ── Mobile Activity Page ────────────────────────────── */
-
 export function MobileActivityPage({ recentActivity, onBack }: { recentActivity: ActivityItem[]; onBack: () => void }) {
   return (
     <div className="mobile-page mobile-only">
       <div className="mobile-page-header">
-        <button className="mobile-back-btn" onClick={onBack}>← Back</button>
+        <button className="mobile-back-btn" onClick={onBack} type="button">Back</button>
         <h2>Recent Activity</h2>
       </div>
       <div className="mobile-page-content">
